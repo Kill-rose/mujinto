@@ -417,12 +417,16 @@ button:disabled {
     width: 100%;
   }
 
-  /* アイテム一覧：ステータスの下 */
+  /* アイテム一覧：ステータスの下、2列グリッド */
   #itemList {
     flex: 1;
     margin-top: 4px;
     min-height: 60px;
     max-height: 35vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-content: start;
+    gap: 2px;
   }
 
   /* アイテムボタン：使用・説明・捨てるを右寄せ・小さめに */
