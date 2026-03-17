@@ -127,6 +127,16 @@ function showMainActions() {
   showMessage(`現在地：${currentPlace}${layerStr}　${placeDescriptions[currentPlace]}`);
 
   createButton('探索').parent(actionPanel).mousePressed(() => explore(currentPlace));
+  // 森・洞窟では「前進」：確実に敵と遭遇する
+  if (currentPlace === '森' || currentPlace === '洞窟') {
+    createButton('前進').parent(actionPanel).mousePressed(() => {
+      passTime(1);
+      player.mp = constrain(player.mp - 1, 0, MAX_MP);
+      updateParams();
+      showMessage(`${currentPlace}を奥へと進んだ……敵と遭遇した！`);
+      startBattle(currentPlace);
+    });
+  }
   createButton('移動').parent(actionPanel).mousePressed(() => showMoveOptions());
   // 広場で焚火あり：待機非表示、焚火ボタンを表示
   if (currentPlace === '広場' && hasCampfire) {
@@ -337,8 +347,9 @@ function explore(place) {
     }
     updateParams();
   } else {
-    // 森・洞窟：10%戦闘、80%アイテム、10%何もなし
-    if (rand < 0.10) {
+    // 森・洞窟：1層目は20%、2層目以降は10%の戦闘確率
+    let battleChance = (layer === 0) ? 0.20 : 0.10;
+    if (rand < battleChance) {
       startBattle(place);
     } else if (rand < 0.90) {
       // 層が高いほどアイテムを多く入手
@@ -704,8 +715,9 @@ function endBattle(victory) {
   placeKillCounts[placeKey] = (placeKillCounts[placeKey] || 0) + 1;
 
   let layerUpped = false;
-  // 2体倒すごとに層UP
-  if (placeKillCounts[placeKey] >= 2) {
+  // 1〜4層（layer 0〜3）：1体で層UP / 5層以降：2体で層UP
+  let killsNeeded = (layer <= 3) ? 1 : 2;
+  if (placeKillCounts[placeKey] >= killsNeeded) {
     placeKillCounts[placeKey] = 0;
     placeLayers[place] = layer + 1;
     maxLayers[place] = max(maxLayers[place], placeLayers[place]);
