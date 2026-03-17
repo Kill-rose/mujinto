@@ -399,33 +399,58 @@ button:disabled {
   #leftTop { flex: 2; }
   #leftBottom { flex: 3; }
 
-  /* 右ウィンドウ：下部 */
+  /* 右ウィンドウ：下部 縦並びに */
   #rightWindow {
     width: 100%;
     border-left: none;
     border-top: 1px solid var(--border);
     flex: 2;
-    flex-direction: row;
-    gap: 8px;
+    flex-direction: column;
+    gap: 0;
     padding: 6px 8px;
-    overflow: hidden;
-  }
-
-  /* ステータスブロック */
-  #rightWindow > div:first-child {
-    flex: 0 0 auto;
-    min-width: 110px;
     overflow-y: auto;
   }
 
-  #itemList {
-    flex: 1;
-    margin-top: 0;
-    min-height: 0;
+  /* ステータスブロック：横幅全体 */
+  #rightWindow > div:first-child {
+    flex: 0 0 auto;
+    width: 100%;
   }
 
-  #itemButtons  { margin-top: 4px; }
-  #saveButtons  { margin-top: 4px; }
+  /* アイテム一覧：ステータスの下 */
+  #itemList {
+    flex: 1;
+    margin-top: 4px;
+    min-height: 60px;
+    max-height: 35vh;
+  }
+
+  /* アイテムボタン：使用・説明・捨てるを右寄せ・小さめに */
+  #itemButtons {
+    margin-top: 4px;
+    justify-content: flex-end;
+  }
+
+  #itemButtons button {
+    flex: 0 0 auto;
+    min-width: 0;
+    width: clamp(52px, 16vw, 72px);
+    font-size: clamp(10px, 3vw, 13px);
+    padding: 5px 2px;
+  }
+
+  /* セーブ・ロード：縦並び */
+  #saveButtons {
+    margin-top: 6px;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  #saveButtons button {
+    width: 100%;
+    font-size: clamp(10px, 3vw, 13px);
+    padding: 6px 0;
+  }
 
   /* 操作パネルを縦画面に合わせてコンパクトに */
   #actionPanel {
