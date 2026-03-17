@@ -1,0 +1,488 @@
+/* style.css — 無人島サバイバル：航海日誌テーマ */
+/* スマホ縦画面対応版 */
+
+* {
+  user-select: none;
+  box-sizing: border-box;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600;700&family=Cinzel:wght@400;600&display=swap');
+
+/* ===================== CSS変数 ===================== */
+:root {
+  --bg-deep:      #0d0f0e;
+  --bg-panel:     #111410;
+  --bg-surface:   #1a1e1a;
+  --bg-raised:    #222820;
+  --border:       #3a4235;
+  --border-light: #4a5445;
+  --accent:       #8fbc5a;
+  --accent-dim:   #5a7a38;
+  --accent-glow:  rgba(143, 188, 90, 0.18);
+  --gold:         #c9a84c;
+  --gold-dim:     #8a6e2a;
+  --danger:       #c0503a;
+  --text-primary: #d4d8cc;
+  --text-dim:     #7a8572;
+  --text-faint:   #4a5245;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: 'Noto Serif JP', serif;
+  overflow: hidden;
+  height: 100dvh;
+}
+
+/* ===================== コンテナ ===================== */
+#container {
+  width: 100vw;
+  height: 100dvh;
+  display: flex;
+  flex-direction: row;
+  background-color: var(--bg-panel);
+}
+
+/* ===================== 左ウィンドウ ===================== */
+#leftWindow {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+#leftTop {
+  flex: 3;
+  border-bottom: 1px solid var(--border);
+  background-color: #1e2418;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+#leftTop::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.35) 0%,
+    rgba(0,0,0,0.10) 40%,
+    rgba(0,0,0,0.55) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+#infoOverlay {
+  padding: 8px 10px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+  position: relative;
+  z-index: 3;
+}
+
+.info-badge {
+  display: inline-block;
+  background: rgba(0,0,0,0.65);
+  color: var(--accent);
+  font-size: clamp(12px, 1.8vw, 20px);
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 2px;
+  border-left: 2px solid var(--accent-dim);
+  width: fit-content;
+  letter-spacing: 0.04em;
+}
+
+#leftBottom {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+#textZone {
+  flex: 1;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background-color: var(--bg-panel);
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 23px,
+    rgba(255,255,255,0.015) 23px,
+    rgba(255,255,255,0.015) 24px
+  );
+  overflow-y: auto;
+  font-size: clamp(14px, 2.0vw, 22px);
+  line-height: 1.7;
+  color: var(--text-primary);
+  position: relative;
+  min-height: 0;
+}
+
+#textZone.waiting::after {
+  content: '▼';
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  color: var(--accent-dim);
+  font-size: clamp(10px, 1.4vw, 14px);
+  animation: blink-arrow 1s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes blink-arrow {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.1; }
+}
+
+#actionPanel {
+  flex: 0 0 auto;
+  padding: 6px 8px;
+  background-color: var(--bg-surface);
+  background-image: linear-gradient(to top, rgba(0,0,0,0.2) 0%, transparent 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+  max-height: 35vh;
+}
+
+/* ===================== 右ウィンドウ ===================== */
+#rightWindow {
+  width: 280px;
+  padding: 12px 10px;
+  background-color: var(--bg-panel);
+  background-image: linear-gradient(to bottom, rgba(255,255,255,0.02) 0%, transparent 30%);
+  color: var(--text-primary);
+  font-size: clamp(13px, 1.6vw, 18px);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.param {
+  margin: 3px 0;
+  font-size: clamp(12px, 1.5vw, 17px);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+h2 {
+  margin: 0 0 8px 0;
+  font-family: 'Cinzel', serif;
+  font-size: clamp(12px, 1.5vw, 17px);
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--gold);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+
+h3 {
+  margin: 8px 0 3px 0;
+  font-family: 'Cinzel', serif;
+  font-size: clamp(10px, 1.2vw, 13px);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* ===================== アイテム一覧 ===================== */
+#itemList {
+  margin-top: 5px;
+  flex: 1;
+  overflow-y: auto;
+  background-color: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 5px;
+  min-height: 40px;
+}
+
+/* ===================== レシピ（leftTop内） ===================== */
+#recipeH2 {
+  position: relative;
+  z-index: 4;
+  margin: 8px 8px 0;
+  background: rgba(0,0,0,0.72);
+  padding: 4px 8px;
+  border-radius: 2px;
+  border-left: 2px solid var(--gold-dim);
+  font-family: 'Cinzel', serif;
+  font-size: clamp(11px, 1.4vw, 15px);
+  letter-spacing: 0.10em;
+  color: var(--gold);
+}
+
+#recipeList {
+  position: relative;
+  z-index: 4;
+  margin: 4px 8px 0;
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-content: start;
+  gap: 2px;
+  background-color: rgba(13,15,14,0.88);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 5px;
+}
+
+#craftButtons {
+  position: relative;
+  z-index: 4;
+  margin: 6px 8px;
+  display: flex;
+  gap: 6px;
+}
+
+#craftButtons button {
+  flex: 1;
+  font-size: clamp(11px, 1.4vw, 15px);
+  padding: 6px 0;
+}
+
+/* ===================== アイテム・レシピ行 ===================== */
+#itemList div.item-entry,
+#recipeList div.item-entry {
+  min-width: 0;
+  padding: 4px 7px;
+  cursor: pointer;
+  border-radius: 2px;
+  font-size: clamp(11px, 1.4vw, 15px);
+  color: var(--text-primary);
+  border-left: 2px solid transparent;
+  transition: background 0.12s, border-color 0.12s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#itemList div.item-entry:hover,
+#recipeList div.item-entry:hover {
+  background-color: var(--bg-raised);
+  border-left-color: var(--border-light);
+}
+
+#itemList div.selected,
+#recipeList div.selected {
+  background-color: var(--accent-glow);
+  border-left-color: var(--accent);
+  color: #e8f4d8;
+  font-weight: 600;
+  white-space: normal;
+}
+
+/* ===================== ボタン ===================== */
+#itemButtons {
+  margin-top: 6px;
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+#itemButtons button {
+  flex: 1;
+  min-width: 55px;
+  font-size: clamp(11px, 1.4vw, 14px);
+  padding: 5px 3px;
+}
+
+button {
+  font-size: clamp(13px, 1.8vw, 20px);
+  padding: clamp(8px, 1.4vh, 16px) clamp(10px, 1.4vw, 20px);
+  cursor: pointer;
+  background-color: var(--bg-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+  font-family: 'Noto Serif JP', serif;
+  letter-spacing: 0.02em;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:hover   { background-color: var(--bg-surface); border-color: var(--border-light); color: #eef4e8; }
+button:active  { background-color: var(--accent-glow); border-color: var(--accent-dim); }
+button:disabled {
+  background-color: var(--bg-deep);
+  color: var(--text-faint);
+  border-color: var(--text-faint);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ===================== セーブ・ロードボタン ===================== */
+#saveButtons {
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+  display: flex;
+  gap: 5px;
+}
+
+#saveButtons button {
+  flex: 1;
+  font-size: clamp(10px, 1.3vw, 14px);
+  padding: clamp(4px, 0.6vh, 8px) 0;
+}
+
+/* ===================== ドロップアイテム ===================== */
+.drop-item {
+  padding: 3px 0;
+  color: var(--gold);
+  font-size: clamp(12px, 1.5vw, 16px);
+}
+
+/* ===================== スクロールバー ===================== */
+::-webkit-scrollbar         { width: 3px; height: 3px; }
+::-webkit-scrollbar-track   { background: transparent; }
+::-webkit-scrollbar-thumb   { background: var(--border); border-radius: 2px; }
+
+/* ===================== 立ち絵 ===================== */
+#portrait {
+  position: absolute;
+  bottom: calc(40% + 10px);
+  left: 20px;
+  height: 200px;
+  width: auto;
+  z-index: 15;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+/* =====================
+   スマホ縦画面
+   幅が600px以下、または縦長アスペクト比
+   ===================== */
+@media (max-width: 600px), (max-aspect-ratio: 3/4) {
+
+  /* コンテナを縦並びに */
+  #container {
+    flex-direction: column;
+  }
+
+  /* 左ウィンドウ：上部 */
+  #leftWindow {
+    flex: 3;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    width: 100%;
+  }
+
+  #leftTop { flex: 2; }
+  #leftBottom { flex: 3; }
+
+  /* 右ウィンドウ：下部 */
+  #rightWindow {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    flex: 2;
+    flex-direction: row;
+    gap: 8px;
+    padding: 6px 8px;
+    overflow: hidden;
+  }
+
+  /* ステータスブロック */
+  #rightWindow > div:first-child {
+    flex: 0 0 auto;
+    min-width: 110px;
+    overflow-y: auto;
+  }
+
+  #itemList {
+    flex: 1;
+    margin-top: 0;
+    min-height: 0;
+  }
+
+  #itemButtons  { margin-top: 4px; }
+  #saveButtons  { margin-top: 4px; }
+
+  /* 操作パネルを縦画面に合わせてコンパクトに */
+  #actionPanel {
+    max-height: 25vh;
+    gap: 4px;
+    padding: 4px 5px;
+  }
+
+  button {
+    font-size: clamp(11px, 3.5vw, 17px);
+    padding: clamp(6px, 1.8vh, 12px) clamp(7px, 2.5vw, 14px);
+  }
+
+  #textZone {
+    font-size: clamp(12px, 3.5vw, 17px);
+    padding: 8px 10px;
+  }
+
+  .info-badge {
+    font-size: clamp(10px, 3vw, 15px);
+    padding: 2px 7px;
+  }
+
+  .param { font-size: clamp(10px, 3vw, 14px); }
+  h2     { font-size: clamp(10px, 3vw, 14px); margin-bottom: 4px; }
+  h3     { font-size: clamp(9px, 2.5vw, 12px); }
+
+  /* レシピは縦画面で1列 */
+  #recipeList {
+    grid-template-columns: 1fr;
+    margin: 3px 6px 0;
+  }
+  #recipeH2    { margin: 5px 6px 0; font-size: clamp(10px, 3vw, 13px); }
+  #craftButtons { margin: 3px 6px 3px; }
+
+  #craftButtons button,
+  #itemButtons button,
+  #saveButtons button {
+    font-size: clamp(10px, 3vw, 13px);
+    padding: 4px 3px;
+  }
+
+  /* 立ち絵を縦画面用に縮小 */
+  #portrait {
+    height: 100px;
+    bottom: calc(25vh + 5px);
+    left: 10px;
+  }
+}
+
+/* =====================
+   タブレット横画面（601〜900px）
+   ===================== */
+@media (min-width: 601px) and (max-width: 900px) {
+  #rightWindow { width: 240px; }
+  button {
+    font-size: clamp(12px, 1.8vw, 18px);
+    padding: clamp(7px, 1.2vh, 14px) clamp(8px, 1.2vw, 16px);
+  }
+}
