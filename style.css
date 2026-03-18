@@ -518,55 +518,196 @@ button:disabled {
 }
 
 /* ===================== 制作画面オーバーレイ ===================== */
+/* ===================== 制作画面オーバーレイ ===================== */
 #recipeOverlay {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background-color: rgba(10, 12, 10, 0.97);
+  background-color: #0d0f0e; /* 完全不透明：背景画像を完全に隠す */
   display: flex;
   flex-direction: column;
-  padding: 16px;
-  overflow: hidden;
+  padding: 14px;
+  overflow: hidden; /* 全体はhidden、リスト部分だけスクロール */
 }
 
-/* オーバーレイ内のrecipeH2 */
+/* タイトル行 */
 #recipeOverlay #recipeH2 {
   position: static;
+  flex: 0 0 auto;
   margin: 0 0 8px 0;
   background: transparent;
   border-left: 2px solid var(--gold-dim);
   font-size: clamp(13px, 2vw, 18px);
 }
 
-/* オーバーレイ内のrecipeList：残り全体を使う */
+/* レシピリスト：残り全スペースを使ってスクロール */
 #recipeOverlay #recipeList {
   position: static;
   margin: 0;
   flex: 1;
   min-height: 0;
+  overflow-y: auto;  /* リストだけスクロール可能 */
+  -webkit-overflow-scrolling: touch; /* iOSでの慣性スクロール */
   font-size: clamp(12px, 1.8vw, 16px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-content: start;
+  gap: 2px;
+  background-color: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 6px;
 }
 
-/* オーバーレイ内のcraftButtons */
+/* ボタン行：下部に固定 */
 #recipeOverlay #craftButtons {
   position: static;
+  flex: 0 0 auto;
   margin: 8px 0 0;
+  display: flex;
+  gap: 8px;
 }
 
-/* スマホではrecipeListを1列に */
+#recipeOverlay #craftButtons button {
+  flex: 1;
+  font-size: clamp(13px, 2vw, 18px);
+  padding: clamp(8px, 1.5vh, 14px) 0;
+}
+
+/* スマホ：1列に */
 @media (max-width: 600px), (max-aspect-ratio: 3/4) {
   #recipeOverlay {
     padding: 10px;
   }
   #recipeOverlay #recipeList {
-    grid-template-columns: 1fr;
-    font-size: clamp(12px, 3.5vw, 16px);
+    grid-template-columns: 1fr; /* スマホは1列 */
+    font-size: clamp(13px, 3.5vw, 17px);
+  }
+  #recipeOverlay #recipeList div.item-entry {
+    font-size: clamp(13px, 3.5vw, 17px);
+    padding: 7px 10px;
+    white-space: normal; /* スマホは折り返し */
   }
   #recipeOverlay #recipeH2 {
-    font-size: clamp(12px, 3.5vw, 16px);
+    font-size: clamp(13px, 3.5vw, 17px);
   }
   #recipeOverlay #craftButtons button {
-    font-size: clamp(12px, 3.5vw, 15px);
-    padding: 8px 0;
+    font-size: clamp(13px, 3.5vw, 17px);
+    padding: 10px 0;
   }
+}
+
+/* ===================== ボタン：アイコン＆カラー ===================== */
+
+/* アイコンとラベルのレイアウト */
+button .btn-icon {
+  display: inline-block;
+  margin-right: 5px;
+  font-style: normal;
+  line-height: 1;
+}
+
+button .btn-label {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* カラーバリエーション */
+button[data-btn-color="explore"] {
+  background-color: #1a2e18;
+  border-color: #3a6030;
+  color: #a8d890;
+}
+button[data-btn-color="explore"]:hover {
+  background-color: #223a20;
+  border-color: #5a8a40;
+}
+
+button[data-btn-color="danger"] {
+  background-color: #2e1010;
+  border-color: #7a2020;
+  color: #e89090;
+}
+button[data-btn-color="danger"]:hover {
+  background-color: #3a1515;
+  border-color: #a03030;
+}
+
+button[data-btn-color="move"] {
+  background-color: #12202a;
+  border-color: #284a60;
+  color: #80b8d8;
+}
+button[data-btn-color="move"]:hover {
+  background-color: #182a38;
+  border-color: #3a6a88;
+}
+
+button[data-btn-color="rest"] {
+  background-color: #101828;
+  border-color: #203050;
+  color: #8090c0;
+}
+button[data-btn-color="rest"]:hover {
+  background-color: #162030;
+  border-color: #304070;
+}
+
+button[data-btn-color="craft"] {
+  background-color: #281e08;
+  border-color: #6a4e10;
+  color: #d4a840;
+}
+button[data-btn-color="craft"]:hover {
+  background-color: #342808;
+  border-color: #8a6820;
+}
+
+button[data-btn-color="story"] {
+  background-color: #142018;
+  border-color: #2a5030;
+  color: #70c080;
+}
+button[data-btn-color="story"]:hover {
+  background-color: #1a2a20;
+  border-color: #406040;
+}
+
+button[data-btn-color="escape"] {
+  background-color: #202018;
+  border-color: #504828;
+  color: #c0b060;
+}
+button[data-btn-color="escape"]:hover {
+  background-color: #2a2820;
+  border-color: #706030;
+}
+
+button[data-btn-color="primary"] {
+  background-color: #183028;
+  border-color: #307050;
+  color: #90d8b0;
+}
+button[data-btn-color="primary"]:hover {
+  background-color: #203c30;
+  border-color: #408060;
+}
+
+button[data-btn-color="sub"] {
+  background-color: var(--bg-raised);
+  border-color: var(--border);
+  color: var(--text-dim);
+}
+button[data-btn-color="sub"]:hover {
+  background-color: var(--bg-surface);
+  border-color: var(--border-light);
+  color: var(--text-primary);
+}
+
+/* disabled時は色上書き */
+button:disabled[data-btn-color] {
+  background-color: var(--bg-deep) !important;
+  border-color: var(--text-faint) !important;
+  color: var(--text-faint) !important;
+  opacity: 0.5;
 }

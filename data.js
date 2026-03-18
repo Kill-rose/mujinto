@@ -320,3 +320,76 @@ const enemyTypes = {
 // =====================
 // 戦闘状態
 // =====================
+
+// =====================
+// ボタン：アイコン＆カラー設定
+// =====================
+const BTN_STYLES = {
+  // === 探索・移動系（緑） ===
+  '探索':       { icon: '🔍', color: 'explore' },
+  '前進':       { icon: '⚔',  color: 'danger'  },
+  '移動':       { icon: '🚶', color: 'move'    },
+  '戻る':       { icon: '↩',  color: 'sub'     },
+  '洞窟（6層）':{ icon: '↩',  color: 'sub'     },
+
+  // === 待機・回復系（青） ===
+  '待機':       { icon: '💤', color: 'rest'    },
+  '焚火で休憩': { icon: '🔥', color: 'rest'    },
+  '燃料を投入': { icon: '🪵', color: 'sub'     },
+
+  // === 制作・アイテム系（金） ===
+  '制作':       { icon: '🔨', color: 'craft'   },
+  '制作する':   { icon: '🔨', color: 'craft'   },
+  'いかだ':     { icon: '🛶', color: 'craft'   },
+
+  // === 会話・ストーリー系（緑アクセント） ===
+  'ケイと話す': { icon: '💬', color: 'story'   },
+  '会話：ケイ': { icon: '💬', color: 'story'   },
+  '資料':       { icon: '📄', color: 'story'   },
+  'PCを操作':   { icon: '💻', color: 'story'   },
+
+  // === 戦闘系（赤） ===
+  '逃走':       { icon: '💨', color: 'escape'  },
+  '後退':       { icon: '◀',  color: 'sub'     },
+  '素手（射程1, 攻撃力1）': { icon: '👊', color: 'danger' },
+
+  // === システム系（ニュートラル） ===
+  'ゲーム開始': { icon: '▶',  color: 'primary' },
+  '続きから':   { icon: '📂', color: 'sub'     },
+  'README':     { icon: '📖', color: 'sub'     },
+  'セーブ':     { icon: '💾', color: 'sub'     },
+  'ロード':     { icon: '📂', color: 'sub'     },
+  'タイトルに戻る': { icon: '🏠', color: 'sub' },
+  '閉じる':     { icon: '✕',  color: 'sub'     },
+  '入力':       { icon: '✓',  color: 'primary' },
+
+  // === アイテム操作系 ===
+  '使用':   { icon: '✓', color: 'primary' },
+  '説明':   { icon: '？', color: 'sub'    },
+  '渡す':   { icon: '🤝', color: 'story'  },
+  '捨てる': { icon: '🗑', color: 'danger' },
+};
+
+// createButtonのラッパー：アイコン＆カラークラスを自動付与
+const _origCreateButton = createButton;
+function createButton(label) {
+  let btn = _origCreateButton(label);
+  let cfg = BTN_STYLES[label];
+  if (!cfg) {
+    // 前方一致で探す（武器ボタンなど動的ラベル対応）
+    for (let key in BTN_STYLES) {
+      if (label.startsWith(key) || label.includes(key)) {
+        cfg = BTN_STYLES[key];
+        break;
+      }
+    }
+  }
+  if (cfg) {
+    // アイコン付きラベルに書き換え
+    btn.elt.innerHTML = `<span class="btn-icon">${cfg.icon}</span><span class="btn-label">${label}</span>`;
+    btn.elt.dataset.btnColor = cfg.color;
+  } else {
+    btn.elt.innerHTML = `<span class="btn-label">${label}</span>`;
+  }
+  return btn;
+}
