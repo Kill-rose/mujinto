@@ -386,18 +386,17 @@ function renderRecipeList() {
     })(name));
   }
 
-  let btnDiv = createDiv().id('craftButtons').parent(leftTop);
+  let btnDiv = createDiv().id('craftButtons').parent(overlay);
   let btnCraft = createButton('制作する').parent(btnDiv);
   if (!selectedRecipe) btnCraft.attribute('disabled', 'true');
   btnCraft.mousePressed(() => { if (selectedRecipe) craftItem(selectedRecipe); });
   createButton('閉じる').parent(btnDiv).mousePressed(() => {
     showRecipes = false;
     selectedRecipe = null;
-    // 制作UIを削除してleftTopをもとに戻す
-    let oldH2   = select('#recipeH2');   if (oldH2)   oldH2.remove();
-    let oldList = select('#recipeList'); if (oldList) oldList.remove();
-    let oldBtns = select('#craftButtons'); if (oldBtns) oldBtns.remove();
-    updateElapsedTime(); // infoOverlayに経過時間を再表示
+    // オーバーレイごと削除
+    let ov = select('#recipeOverlay');
+    if (ov) ov.remove();
+    updateElapsedTime();
   });
 }
 

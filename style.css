@@ -516,3 +516,57 @@ button:disabled {
     padding: clamp(7px, 1.2vh, 14px) clamp(8px, 1.2vw, 16px);
   }
 }
+
+/* ===================== 制作画面オーバーレイ ===================== */
+#recipeOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background-color: rgba(10, 12, 10, 0.97);
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  overflow: hidden;
+}
+
+/* オーバーレイ内のrecipeH2 */
+#recipeOverlay #recipeH2 {
+  position: static;
+  margin: 0 0 8px 0;
+  background: transparent;
+  border-left: 2px solid var(--gold-dim);
+  font-size: clamp(13px, 2vw, 18px);
+}
+
+/* オーバーレイ内のrecipeList：残り全体を使う */
+#recipeOverlay #recipeList {
+  position: static;
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  font-size: clamp(12px, 1.8vw, 16px);
+}
+
+/* オーバーレイ内のcraftButtons */
+#recipeOverlay #craftButtons {
+  position: static;
+  margin: 8px 0 0;
+}
+
+/* スマホではrecipeListを1列に */
+@media (max-width: 600px), (max-aspect-ratio: 3/4) {
+  #recipeOverlay {
+    padding: 10px;
+  }
+  #recipeOverlay #recipeList {
+    grid-template-columns: 1fr;
+    font-size: clamp(12px, 3.5vw, 16px);
+  }
+  #recipeOverlay #recipeH2 {
+    font-size: clamp(12px, 3.5vw, 16px);
+  }
+  #recipeOverlay #craftButtons button {
+    font-size: clamp(12px, 3.5vw, 15px);
+    padding: 8px 0;
+  }
+}
