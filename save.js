@@ -71,6 +71,26 @@ function loadGame() {
 function loadAndRefresh() {
   if (loadGame()) {
     state = 'game';
+    // タイトル画面からのロード時はDOMを再構築
+    if (!document.getElementById('leftWindow')) {
+      container.elt.id = 'container';
+      container.html('');
+      container.style('flex-direction', 'row');
+      container.style('justify-content', '');
+      container.style('align-items', '');
+      container.style('background', '');
+      container.style('overflow-y', '');
+      leftWindow  = createDiv().id('leftWindow').parent(container);
+      leftTop     = createDiv().id('leftTop').parent(leftWindow);
+      createDiv().id('infoOverlay').parent(leftTop);
+      leftBottom  = createDiv().id('leftBottom').parent(leftWindow);
+      textZone    = createDiv().id('textZone').parent(leftBottom);
+      actionPanel = createDiv().id('actionPanel').parent(leftBottom);
+      rightWindow = createDiv().id('rightWindow').parent(container);
+      createElement('canvas').id('silhouetteCanvas').parent(leftWindow);
+      let cvs = document.getElementById('silhouetteCanvas');
+      if (cvs) { cvs.width = 160; cvs.height = 200; }
+    }
     updateBgImage(currentRoom ? '洞窟' : currentPlace);
     updateElapsedTime();
     updateParams();

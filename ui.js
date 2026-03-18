@@ -85,11 +85,101 @@ function showTransceiverEnding() {
   btn.elt.style.cssText = 'margin-top:32px;font-size:clamp(13px,1.8vw,18px);padding:10px 36px;background:transparent;border:1px solid #284a60;color:#80b8d8;cursor:pointer;';
   btn.mousePressed(() => location.reload());
 }
+// =====================
+// タイトル画面（独立レイアウト）
+// =====================
 function showOpening() {
-  actionPanel.html('');
-  rightWindow.html('');
+  // container全体をタイトル画面に置き換え
+  container.html('');
+  container.style('flex-direction', 'column');
+  container.style('justify-content', 'center');
+  container.style('align-items', 'center');
+  container.style('background', 'radial-gradient(ellipse at 40% 60%, #0d2010 0%, #050e06 60%, #000 100%)');
+  container.elt.id = 'titleScreen';
 
-  // オープニングテキスト（クリックで進む）
+  let titleDiv = createDiv().parent(container);
+  titleDiv.elt.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:clamp(12px,2.5vh,28px);width:100%;max-width:480px;padding:20px;';
+
+  // ゲームタイトル
+  let h = createDiv().parent(titleDiv);
+  h.elt.innerHTML = `
+    <div style="font-family:Cinzel,serif;font-size:clamp(28px,6vw,64px);color:#8fbc5a;letter-spacing:0.15em;text-align:center;line-height:1.2;text-shadow:0 0 40px rgba(143,188,90,0.4)">
+      無人島<br>サバイバル
+    </div>
+    <div style="color:#4a6a38;font-size:clamp(11px,1.8vw,16px);letter-spacing:0.2em;text-align:center;margin-top:8px;font-family:Cinzel,serif">
+      UNINHABITED ISLAND
+    </div>
+  `;
+
+  // 区切り線
+  let sep = createDiv().parent(titleDiv);
+  sep.elt.style.cssText = 'width:clamp(160px,40vw,280px);height:1px;background:linear-gradient(to right,transparent,#3a6030,transparent);';
+
+  // メニューボタン群
+  let menu = createDiv().parent(titleDiv);
+  menu.elt.style.cssText = 'display:flex;flex-direction:column;gap:clamp(8px,1.5vh,14px);width:100%;';
+
+  function titleBtn(label, fn, accent) {
+    let b = document.createElement('button');
+    b.textContent = label;
+    b.style.cssText = `
+      width:100%; font-family:'Noto Serif JP',serif;
+      font-size:clamp(16px,2.8vw,26px);
+      padding:clamp(12px,2vh,20px) 0;
+      background:${accent ? 'rgba(58,96,48,0.35)' : 'rgba(30,40,28,0.5)'};
+      border:1px solid ${accent ? '#5a8040' : '#3a4235'};
+      color:${accent ? '#a8d888' : '#8a9882'};
+      cursor:pointer; border-radius:2px; letter-spacing:0.08em;
+      transition:background 0.2s, color 0.2s;
+    `;
+    b.addEventListener('mouseenter', () => {
+      b.style.background = accent ? 'rgba(80,130,60,0.45)' : 'rgba(50,60,45,0.6)';
+      b.style.color = '#d4d8cc';
+    });
+    b.addEventListener('mouseleave', () => {
+      b.style.background = accent ? 'rgba(58,96,48,0.35)' : 'rgba(30,40,28,0.5)';
+      b.style.color = accent ? '#a8d888' : '#8a9882';
+    });
+    b.addEventListener('click', fn);
+    menu.elt.appendChild(b);
+    return b;
+  }
+
+  titleBtn('▶  開始', () => startOpening(), true);
+
+  if (localStorage.getItem('savedata')) {
+    titleBtn('📂  ロード', () => loadAndRefresh(), false);
+  }
+
+  titleBtn('📖  遊び方', () => showTitleSubPage('howtoplay'), false);
+  titleBtn('⚔  攻略',   () => showTitleSubPage('guide'), false);
+}
+
+// 「開始」→オープニングテキスト→ゲームへ
+function startOpening() {
+  // タイトル画面を通常ゲームレイアウトに戻す
+  container.elt.id = 'container';
+  container.html('');
+  container.style('flex-direction', 'row');
+  container.style('justify-content', '');
+  container.style('align-items', '');
+  container.style('background', '');
+
+  // DOM再構築
+  leftWindow  = createDiv().id('leftWindow').parent(container);
+  leftTop     = createDiv().id('leftTop').parent(leftWindow);
+  createDiv().id('infoOverlay').parent(leftTop);
+  leftBottom  = createDiv().id('leftBottom').parent(leftWindow);
+  textZone    = createDiv().id('textZone').parent(leftBottom);
+  actionPanel = createDiv().id('actionPanel').parent(leftBottom);
+  rightWindow = createDiv().id('rightWindow').parent(container);
+  createElement('canvas').id('silhouetteCanvas').parent(leftWindow);
+  let cvs = document.getElementById('silhouetteCanvas');
+  if (cvs) { cvs.width = 160; cvs.height = 200; }
+
+  updateBgImage('広場');
+
+  // オープニングテキスト
   showMessage(
     '2024年10月——<br>' +
     'クルーズ船「さくら丸」は、太平洋上を航行していた。<br>' +
@@ -108,48 +198,95 @@ function showOpening() {
         '体はボロボロだが、動ける。<br>' +
         'このまま死ぬわけにはいかない。',
         true,
-        () => showTitleMenu()
+        () => {
+          state = 'game';
+          updateParams();
+          showMainActions();
+        }
       )
     )
   );
+  actionPanel.html('');
+  rightWindow.html('');
 }
 
-function showTitleMenu() {
-  actionPanel.html('');
+// タイトル画面のサブページ（遊び方・攻略）
+function showTitleSubPage(type) {
+  container.html('');
+  container.style('flex-direction', 'column');
+  container.style('justify-content', 'flex-start');
+  container.style('align-items', 'center');
+  container.style('background', '#0d0f0e');
+  container.style('overflow-y', 'auto');
 
-  createButton('ゲーム開始').parent(actionPanel).mousePressed(() => {
-    state = 'game';
-    updateParams();
-    showMainActions();
-  });
+  let wrap = createDiv().parent(container);
+  wrap.elt.style.cssText = 'width:100%;max-width:640px;padding:clamp(16px,4vw,40px);';
 
-  if (localStorage.getItem('savedata')) {
-    createButton('続きから').parent(actionPanel).mousePressed(() => {
-      loadAndRefresh();
-    });
+  if (type === 'howtoplay') {
+    wrap.elt.innerHTML = `
+      <h1 style="font-family:Cinzel,serif;color:#c9a84c;font-size:clamp(18px,3vw,28px);margin:0 0 20px;border-bottom:1px solid #3a4235;padding-bottom:8px;">遊び方</h1>
+      <h2 style="color:#8fbc5a;font-size:clamp(14px,2.2vw,20px);margin:16px 0 8px;">基本の流れ</h2>
+      <p style="color:#d4d8cc;line-height:1.8;font-size:clamp(13px,1.8vw,17px);">
+        操作パネルのボタンを選んで行動します。<br>
+        <b style="color:#a8d888">探索</b>……アイテム収集・敵遭遇。クールダウンあり。<br>
+        <b style="color:#a8d888">前進</b>……森・洞窟で確実に戦闘。<br>
+        <b style="color:#a8d888">移動</b>……場所を移動。移動先のクールダウンがリセット。<br>
+        <b style="color:#a8d888">待機</b>……時間経過。焚火があれば回復。<br>
+        <b style="color:#a8d888">制作</b>……広場でのみ使用可能。
+      </p>
+      <h2 style="color:#8fbc5a;font-size:clamp(14px,2.2vw,20px);margin:16px 0 8px;">アイテムの使い方</h2>
+      <p style="color:#d4d8cc;line-height:1.8;font-size:clamp(13px,1.8vw,17px);">
+        右パネルでアイテムを選択してボタンを押します。<br>
+        <b style="color:#a8d888">使用</b>……食べる・設置する。<span style="color:#c9a84c">焚火・いかだは「使用」で広場に設置。</span><br>
+        <b style="color:#a8d888">説明</b>……使い方のヒントが読めます。<br>
+        <b style="color:#a8d888">捨てる</b>……アイテムを捨てる。
+      </p>
+      <h2 style="color:#8fbc5a;font-size:clamp(14px,2.2vw,20px);margin:16px 0 8px;">時間について</h2>
+      <p style="color:#d4d8cc;line-height:1.8;font-size:clamp(13px,1.8vw,17px);">
+        行動するたびに時間が経過します。時間によってイベントや状況が変わります。<br>
+        <span style="color:#c9a84c">セリフや資料にはヒントが隠れています。よく読みましょう。</span>
+      </p>
+      <h2 style="color:#8fbc5a;font-size:clamp(14px,2.2vw,20px);margin:16px 0 8px;">脱出ルート</h2>
+      <p style="color:#d4d8cc;line-height:1.8;font-size:clamp(13px,1.8vw,17px);">
+        <b style="color:#a8d888">いかだ</b>……木材と紐で制作。一人でないと乗れない。<br>
+        <b style="color:#a8d888">トランシーバー</b>……洞窟の奥に。100時間以降に使える。<br>
+        <b style="color:#a8d888">謎解きルート</b>……研究所のPCがカギ。ある人物との協力が必要。
+      </p>
+    `;
+  } else {
+    wrap.elt.innerHTML = `
+      <h1 style="font-family:Cinzel,serif;color:#c9a84c;font-size:clamp(18px,3vw,28px);margin:0 0 20px;border-bottom:1px solid #3a4235;padding-bottom:8px;">攻略情報</h1>
+      <p style="color:#7a8572;font-size:clamp(12px,1.6vw,15px);margin-bottom:16px;">※ネタバレを含みます</p>
+      <h2 style="color:#8fbc5a;font-size:clamp(14px,2.2vw,20px);margin:16px 0 8px;">時間制限</h2>
+      <p style="color:#d4d8cc;line-height:1.8;font-size:clamp(13px,1.8vw,17px);">
+        100時間：洞窟6層で重要な変化。トランシーバーが手に入る。<br>
+        150時間：研究所の廊下の状況が変わる。ケイが広場に来る。
+      </p>
+      <h2 style="color:#8fbc5a;font-size:clamp(14px,2.2vw,20px);margin:16px 0 8px;">探索のコツ</h2>
+      <p style="color:#d4d8cc;line-height:1.8;font-size:clamp(13px,1.8vw,17px);">
+        クールダウン中は移動して戻ると即リセット。<br>
+        森・洞窟で「前進」を使うと確実に戦闘できる（層を上げたい時に有効）。<br>
+        1〜4層は1体撃破で層UP。5層以降は2体必要。
+      </p>
+      <h2 style="color:#8fbc5a;font-size:clamp(14px,2.2vw,20px);margin:16px 0 8px;">戦闘のコツ</h2>
+      <p style="color:#d4d8cc;line-height:1.8;font-size:clamp(13px,1.8vw,17px);">
+        ？？？は3ターンごとに強攻撃（攻撃力30）。<br>
+        強攻撃の前にアイテムを「投げる」とキャンセルできる。<br>
+        「観察」ボタンで戦況のヒントが得られる。
+      </p>
+      <h2 style="color:#8fbc5a;font-size:clamp(14px,2.2vw,20px);margin:16px 0 8px;">研究室のパスワード</h2>
+      <p style="color:#d4d8cc;line-height:1.8;font-size:clamp(13px,1.8vw,17px);">
+        ヒントは研究所内の資料に散らばっている。<br>
+        <span style="color:#c9a84c">答えは「200431」</span>（ある日付＋ある番号）。
+      </p>
+    `;
   }
 
-  createButton('遊び方').parent(actionPanel).mousePressed(() => showHowToPlay());
-
-  createButton('README').parent(actionPanel).mousePressed(() => {
-    actionPanel.html('');
-    textZone.elt.innerHTML = '';
-    fetch('readme.md')
-      .then(r => r.text())
-      .then(txt => {
-        let html = txt
-          .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-          .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-          .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-          .split('\n').join('<br>');
-        textZone.elt.innerHTML = html;
-      })
-      .catch(() => { textZone.elt.innerHTML = 'readme.md が見つかりませんでした。'; });
-    createButton('タイトルに戻る').parent(actionPanel).mousePressed(() => {
-      actionPanel.html('');
-      showTitleMenu();
-    });
-  });
+  let backBtn = document.createElement('button');
+  backBtn.textContent = '← タイトルに戻る';
+  backBtn.style.cssText = 'margin-top:24px;font-size:clamp(13px,2vw,18px);padding:10px 28px;background:transparent;border:1px solid #3a4235;color:#7a8572;cursor:pointer;font-family:Noto Serif JP,serif;';
+  backBtn.addEventListener('click', () => showOpening());
+  wrap.elt.appendChild(backBtn);
 }
 
 // =====================
