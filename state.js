@@ -8,8 +8,11 @@ let battle = {
   distance: 0,
   playerTurn: true,
   place: '',
-  turns: 0,        // 合計ターン数
-  killCount: 0,    // 場所ごとの撃破数（2体で層UP）
+  turns: 0,
+  killCount: 0,
+  isSeaBoss: false,
+  strongAttackCounter: 0,  // 強攻撃カウンター（3ターンごとに発動）
+  feedThisTurn: false,     // このターン投げた（強攻撃キャンセル）
 };
 
 // =====================

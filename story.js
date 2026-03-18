@@ -249,11 +249,13 @@ function moveToLab(room) {
 // 林ナオト戦（廊下で150時間後）
 function startBattleNaoto() {
   battle.active     = true;
-  battle.enemyName  = '林ナオト（変異体）';
+  battle.enemyName  = '？？？';
   battle.isNaoto    = true;
-  battle.enemyHp    = 30;
-  battle.enemyMaxHp = 30;
-  battle.enemyAtk   = 8;
+  battle.strongAttackCounter = 0;
+  battle.feedThisTurn = false;
+  battle.enemyHp    = 45;
+  battle.enemyMaxHp = 45;
+  battle.enemyAtk   = 12;
   battle.enemyRange = 2;
   battle.distance   = 3;
   battle.playerTurn = true;
@@ -261,8 +263,20 @@ function startBattleNaoto() {
   state = 'battle';
   updateBattleInfo();
   updateParams();
-  showMessage('林ナオト（変異体）が現れた！　距離：3', false);
-  showBattleActions();
+  // ケイがいたら1ターン目にヒントを教えてくれる（ターン消費なし）
+  if (keiPlazaArrived) {
+    showPortrait('kei');
+    showMessage(
+      'ケイ：待って、よく見てください。<br>' +
+      'あれ……3ターンごとに大きく構えをとる。その前にものを投げれば止められるかもしれない。<br>' +
+      'あと、距離3以上離れれば通常攻撃は届きません。でも全力攻撃は遠くても来ます。',
+      true,
+      () => { hidePortrait(); showBattleActions(); }
+    );
+  } else {
+    showMessage('？？？が現れた！　距離：3', false);
+    showBattleActions();
+  }
 }
 
 // =====================
@@ -285,9 +299,14 @@ function showLabActions() {
     });
   }
 
-  // 研究室PCパスワード
+  // 研究室PC
   if (currentRoom === '研究室') {
-    createButton('PCを操作').parent(actionPanel).mousePressed(() => showPasswordInput());
+    if (!hasLabRecord) {
+      createButton('PCを操作').parent(actionPanel).mousePressed(() => showPasswordInput());
+    } else {
+      // 記録入手後はパスワード入力不要、救助信号を送れる
+      createButton('PCを操作').parent(actionPanel).mousePressed(() => showLabPCMenu());
+    }
   }
 
   // ケイ会話（合流済みの場合）
@@ -424,7 +443,16 @@ function checkPassword(val) {
       true,
       () => {
         addItem('研究所の記録');
-        showMessage('<span style="color:#adf">（「研究所の記録」を入手した。これが謎解きルートのクリアアイテムだ）</span>', true, () => showLabActions());
+        hasLabRecord = true;
+        // 研究所の記録入手後：このPCから救助を呼べることを示す
+        showMessage(
+          '<b>【端末：追加機能発見】</b><br><br>' +
+          '記録の最後に、別のプログラムが起動した。<br>' +
+          '「緊急通報システム——衛星回線経由で救助信号を送信できます」<br><br>' +
+          '<span style="color:var(--accent)">（このPCから救助を呼べる。「PCを操作」から「救助信号を送る」を選ぼう）</span>',
+          true,
+          () => showLabActions()
+        );
       }
     );
   } else {
@@ -436,3 +464,138 @@ function checkPassword(val) {
 // =====================
 // 立ち絵表示
 // =====================
+
+// =====================
+// 研究室PC：記録入手後のメニュー
+// =====================
+function showLabPCMenu() {
+  actionPanel.html('');
+  showMessage('端末が起動している。何をする？');
+  createButton('記録を確認').parent(actionPanel).mousePressed(() => {
+    showMessage(
+      '<b>【研究所の記録（概要）】</b><br><br>' +
+      'プロジェクト：TIDAL　発注：——省<br>' +
+      '目的：極限環境下での生存能力を持つ人間の量産<br>' +
+      '被験者No.3〜7　林ナオト（No.7、自己投与）<br><br>' +
+      'ユキ、ごめん。',
+      true, () => showLabActions()
+    );
+  });
+  createButton('救助信号を送る').parent(actionPanel).mousePressed(() => {
+    showMessage(
+      'ためらいながらも、送信ボタンを押した。<br>' +
+      '画面に「送信完了——衛星回線を確認しました」と表示された。<br><br>' +
+      '……数時間後、外から音が聞こえてきた。',
+      true,
+      () => showMessage(
+        'ヘリコプターだ。<br>' +
+        (keiPlazaArrived
+          ? 'ケイが隣に立っていた。「来た……来てくれた」と彼は言った。'
+          : '一人で、その音を聞いていた。'),
+        true,
+        () => showTruthEnding()
+      )
+    );
+  });
+  createButton('戻る').parent(actionPanel).mousePressed(() => showLabActions());
+}
+
+// =====================
+// 謎解きエンディング（豪華演出）
+// =====================
+function showTruthEnding() {
+  clearUI();
+  container.html('');
+  let endDiv = createDiv().parent(container);
+  endDiv.elt.style.cssText = `
+    width:100%; height:100%;
+    display:flex; flex-direction:column;
+    justify-content:center; align-items:center;
+    text-align:center; padding:40px;
+    background: radial-gradient(ellipse at 30% 60%, #0a2218 0%, #050e06 50%, #000 100%);
+    overflow:hidden; position:relative;
+  `;
+
+  // パーティクル風の装飾
+  let canvas = document.createElement('canvas');
+  canvas.style.cssText = 'position:absolute;inset:0;pointer-events:none;opacity:0.3;';
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  endDiv.elt.appendChild(canvas);
+  let ctx = canvas.getContext('2d');
+  let particles = Array.from({length: 60}, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    r: Math.random() * 2 + 0.5,
+    vy: -(Math.random() * 0.4 + 0.1),
+    o: Math.random()
+  }));
+  function animParticles() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(143,188,90,${p.o})`;
+      ctx.fill();
+      p.y += p.vy;
+      p.o = 0.3 + 0.3 * Math.sin(Date.now() / 800 + p.x);
+      if (p.y < 0) p.y = canvas.height;
+    });
+    requestAnimationFrame(animParticles);
+  }
+  animParticles();
+
+  let withKei = keiPlazaArrived;
+  let content = endDiv.elt;
+
+  // タイトル
+  let titleEl = document.createElement('div');
+  titleEl.style.cssText = `font-family:Cinzel,serif;font-size:clamp(26px,5.5vw,62px);color:#8fbc5a;letter-spacing:0.2em;margin-bottom:28px;opacity:0;transition:opacity 1.5s;`;
+  titleEl.textContent = 'ENDING: TRUTH';
+  content.appendChild(titleEl);
+
+  // サブタイトル
+  let subEl = document.createElement('div');
+  subEl.style.cssText = `font-family:Cinzel,serif;font-size:clamp(13px,2vw,20px);color:#c9a84c;letter-spacing:0.15em;margin-bottom:32px;opacity:0;transition:opacity 1.5s;`;
+  subEl.textContent = withKei ? '— The Truth Comes to Light —' : '— Alone with the Truth —';
+  content.appendChild(subEl);
+
+  // 本文
+  let storyEl = document.createElement('div');
+  storyEl.style.cssText = `color:#d4d8cc;font-size:clamp(13px,1.8vw,21px);max-width:640px;line-height:2.0;margin-bottom:20px;opacity:0;transition:opacity 1.5s;`;
+  storyEl.innerHTML = withKei
+    ? `救助ヘリは、研究所の上空に降りた。<br>
+       ケイと並んで乗り込んだ。<br><br>
+       「あの記録、ちゃんと届けましょう」<br>
+       彼はそう言って、窓の外を見た。<br><br>
+       島は小さくなっていく。<br>
+       林ナオトが残したもの、被験者たちの名前、すべてを——<br>
+       世界に届ける。それが、生き残った者にできることだ。`
+    : `救助ヘリに一人で乗り込んだ。<br><br>
+       林ナオトが残した記録をポケットに入れたまま、窓の外を見ていた。<br>
+       島が遠ざかる。<br><br>
+       プロジェクト・タイダルを発注した者は、まだいる。<br>
+       この記録が、彼らに届くことを——<br>
+       そう願いながら、空を見上げた。`;
+  content.appendChild(storyEl);
+
+  // 経過時間
+  let timeEl = document.createElement('div');
+  timeEl.style.cssText = 'color:#4a5245;font-size:clamp(11px,1.4vw,15px);margin-bottom:28px;opacity:0;transition:opacity 1.5s;';
+  timeEl.textContent = `経過時間：${elapsedTime} 時間`;
+  content.appendChild(timeEl);
+
+  // ボタン
+  let btnEl = document.createElement('button');
+  btnEl.textContent = 'タイトルに戻る';
+  btnEl.style.cssText = 'margin-top:8px;font-size:clamp(13px,1.8vw,18px);padding:12px 44px;background:transparent;border:1px solid #3a6030;color:#8fbc5a;cursor:pointer;font-family:Noto Serif JP,serif;letter-spacing:0.1em;opacity:0;transition:opacity 1.5s;';
+  btnEl.addEventListener('click', () => location.reload());
+  content.appendChild(btnEl);
+
+  // 順番にフェードイン
+  setTimeout(() => { titleEl.style.opacity = '1'; }, 300);
+  setTimeout(() => { subEl.style.opacity = '1'; }, 1200);
+  setTimeout(() => { storyEl.style.opacity = '1'; }, 2200);
+  setTimeout(() => { timeEl.style.opacity = '1'; }, 3200);
+  setTimeout(() => { btnEl.style.opacity = '1'; }, 3800);
+}

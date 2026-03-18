@@ -175,18 +175,142 @@ function showMainActions() {
 // いかだ
 // =====================
 function onRaftClick() {
-  if (player.hp >= 80 && player.mp >= 30) {
-    clearUI(); container.html('');
-    createDiv().parent(container)
-      .style('color','lime').style('font-size','48px')
-      .style('text-align','center').style('padding-top','200px')
-      .html('ゲームクリア！');
-    createButton('タイトルに戻る').parent(container)
-      .style('font-size','24px').style('margin-top','30px')
-      .mousePressed(() => location.reload());
-  } else {
-    showMessage('力が足りず、出発できなかった……', true, () => gameOver());
+  // ケイがいたら2人では乗れない
+  if (keiPlazaArrived) {
+    showMessage(
+      'ケイ：待ってください。このいかだ、2人では乗れないですよ。<br>' +
+      'それに、生存率が低すぎる。海上で何かいるとしたら……<br>' +
+      'もっと確実な方法を探しましょう。研究所に行けば何かあるかもしれない。'
+    );
+    return;
   }
+  if (player.hp < 80 || player.mp < 30) {
+    showMessage('体力か気力が足りない。このまま出発するのは危険だ。（HP80・MP30以上必要）');
+    return;
+  }
+  // 出発演出→海上ボス戦
+  showMessage(
+    'いかだに乗り込み、沖へと漕ぎ出した。<br>' +
+    '風は穏やかだった。しかし——<br>' +
+    '海面が揺れ、巨大な影がいかだの下を通り過ぎた。',
+    true,
+    () => startSeaBoss()
+  );
+}
+
+// =====================
+// 海上ボス戦
+// =====================
+function startSeaBoss() {
+  battle.active     = true;
+  battle.enemyName  = '？？？';
+  battle.enemyHp    = 60;
+  battle.enemyMaxHp = 60;
+  battle.enemyAtk   = 15;
+  battle.enemyRange = 2;
+  battle.distance   = 4;
+  battle.playerTurn = true;
+  battle.place      = '海上';
+  battle.turns      = 0;
+  battle.isSeaBoss  = true;
+  battle.strongAttackCounter = 0;
+  battle.feedThisTurn = false;
+  state = 'battle';
+  updateBattleInfo();
+  updateParams();
+  // 謎解きルートクリア済みなら特別メッセージ
+  if (hasLabRecord) {
+    showMessage(
+      '海面から巨大な影が浮かび上がってきた。<br>' +
+      'その目には、かすかに理性の光が残っているように見えた。<br><br>' +
+      '研究所の記録を持っている。この戦いに意味がある。',
+      true,
+      () => showBattleActions()
+    );
+  } else {
+    showMessage(
+      '巨大な怪物がいかだに迫ってくる！<br>戦うしかない。',
+      false, null
+    );
+    showBattleActions();
+  }
+}
+
+// 海上ボス撃破後のエンディング分岐
+function endSeaBoss() {
+  battle.active    = false;
+  battle.isSeaBoss = false;
+  state = 'game';
+  clearUI();
+  container.html('');
+
+  let endDiv = createDiv().parent(container);
+  endDiv.elt.style.cssText = `
+    width:100%; height:100%;
+    display:flex; flex-direction:column;
+    justify-content:center; align-items:center;
+    text-align:center; padding:40px;
+  `;
+
+  // エンディング分岐
+  if (hasLabRecord && keiPlazaArrived) {
+    // 最良エンド：謎解き＋同行
+    endDiv.elt.style.background = 'radial-gradient(ellipse at center, #0a2a18 0%, #050e08 70%)';
+    endDiv.html(`
+      <div style="font-family:Cinzel,serif;font-size:clamp(24px,5vw,52px);color:#8fbc5a;letter-spacing:0.15em;margin-bottom:20px">ENDING: TRUTH</div>
+      <div style="color:#c9a84c;font-size:clamp(14px,2vw,22px);max-width:600px;line-height:1.8;margin-bottom:16px">
+        怪物を倒し、いかだは沖へ出た。<br>
+        ケイが隣に立っていた。<br>
+        「全部終わったんですね」と彼は言った。<br><br>
+        研究所の記録は、すべての真実を証明している。<br>
+        プロジェクト・タイダルは終わった。しかし——発注した側はまだいる。
+      </div>
+      <div style="color:#7a8572;font-size:clamp(12px,1.5vw,17px)">経過時間：${elapsedTime} 時間</div>
+    `);
+  } else if (hasLabRecord) {
+    // 謎解きエンド
+    endDiv.elt.style.background = 'radial-gradient(ellipse at center, #0a1e2a 0%, #050810 70%)';
+    endDiv.html(`
+      <div style="font-family:Cinzel,serif;font-size:clamp(24px,5vw,52px);color:#80b8d8;letter-spacing:0.15em;margin-bottom:20px">ENDING: RECORD</div>
+      <div style="color:#d4d8cc;font-size:clamp(14px,2vw,22px);max-width:600px;line-height:1.8;margin-bottom:16px">
+        怪物を退け、沖に出た。<br>
+        ポケットには研究所の記録がある。<br>
+        林ナオトが残した証拠。<br><br>
+        これを世に出すことが、彼への、そして被験者たちへの——<br>
+        せめてもの弔いになるだろうか。
+      </div>
+      <div style="color:#7a8572;font-size:clamp(12px,1.5vw,17px)">経過時間：${elapsedTime} 時間</div>
+    `);
+  } else if (keiPlazaArrived) {
+    // 同行エンド
+    endDiv.elt.style.background = 'radial-gradient(ellipse at center, #182810 0%, #080e05 70%)';
+    endDiv.html(`
+      <div style="font-family:Cinzel,serif;font-size:clamp(24px,5vw,52px);color:#8fbc5a;letter-spacing:0.15em;margin-bottom:20px">ENDING: TOGETHER</div>
+      <div style="color:#d4d8cc;font-size:clamp(14px,2vw,22px);max-width:600px;line-height:1.8;margin-bottom:16px">
+        怪物を倒し、いかだは沖に出た。<br>
+        ケイが隣で漕いでいた。<br>
+        「あの島のこと、いつか話せる日が来るといいですね」<br><br>
+        島は遠ざかり、やがて見えなくなった。
+      </div>
+      <div style="color:#7a8572;font-size:clamp(12px,1.5vw,17px)">経過時間：${elapsedTime} 時間</div>
+    `);
+  } else {
+    // 通常エンド
+    endDiv.elt.style.background = 'radial-gradient(ellipse at center, #1a2418 0%, #080e05 70%)';
+    endDiv.html(`
+      <div style="font-family:Cinzel,serif;font-size:clamp(24px,5vw,52px);color:#c9a84c;letter-spacing:0.15em;margin-bottom:20px">ENDING: ESCAPE</div>
+      <div style="color:#d4d8cc;font-size:clamp(14px,2vw,22px);max-width:600px;line-height:1.8;margin-bottom:16px">
+        怪物を退け、いかだは沖へ向かった。<br>
+        島に何があったのか、まだ何も知らない。<br><br>
+        ただ、生きて帰ることができた。
+      </div>
+      <div style="color:#7a8572;font-size:clamp(12px,1.5vw,17px)">経過時間：${elapsedTime} 時間</div>
+    `);
+  }
+
+  createButton('タイトルに戻る').parent(endDiv)
+    .elt.style.cssText = 'margin-top:32px;font-size:clamp(13px,2vw,20px);padding:12px 40px;background:transparent;border:1px solid #3a4235;color:#8fbc5a;cursor:pointer;';
+  endDiv.elt.querySelector('button').addEventListener('click', () => location.reload());
 }
 
 // =====================
@@ -556,6 +680,108 @@ function showBattleActions() {
       }
     }
   }
+
+  // 回復アイテムを使う（ターン消費）
+  const healItems = ['りんご','小果実','うさぎ肉','狼の肉','干し肉','狼肉の燻製','薬草スープ','万能薬','救急キット'];
+  let hasHeal = healItems.some(n => (itemCounts[n] || 0) > 0);
+  if (hasHeal) {
+    createButton('使用').parent(actionPanel).mousePressed(() => showBattleHealMenu());
+  }
+
+  // 観察ボタン
+  createButton('観察').parent(actionPanel).mousePressed(() => {
+    let hint = getBattleObserveHint();
+    let prevMsg = textZone.elt.innerHTML;
+    showMessage(hint, true, () => { showMessage(prevMsg); showBattleActions(); });
+  });
+
+  // ？？？にアイテムを食わせる（ボス戦のみ・非回復アイテム）
+  if (battle.isSeaBoss || battle.isNaoto) {
+    // 食わせられるアイテム（武器・素材など回復以外）
+    let feedCandidates = Object.keys(itemCounts).filter(n =>
+      (itemCounts[n] || 0) > 0 && !healItems.includes(n) && !(n in weapons)
+    );
+    if (feedCandidates.length > 0) {
+      createButton('投げる').parent(actionPanel).mousePressed(() => showBattleFeedMenu());
+    }
+  }
+}
+
+// 戦闘中回復メニュー
+function showBattleHealMenu() {
+  const healItems = ['りんご','小果実','うさぎ肉','狼の肉','干し肉','狼肉の燻製','薬草スープ','万能薬','救急キット'];
+  const foodTable = {
+    'りんご': { hp:0, mp:10 }, '小果実': { hp:0, mp:10 },
+    'うさぎ肉': { hp:0, mp:15 }, '狼の肉': { hp:0, mp:20 },
+    '干し肉': { hp:15, mp:10 }, '狼肉の燻製': { hp:20, mp:20 },
+    '薬草スープ': { hp:20, mp:0 }, '万能薬': { hp:100, mp:0 },
+    '救急キット': { hp:25, mp:0 },
+  };
+  actionPanel.html('');
+  showMessage('どのアイテムを使う？（1ターン消費）');
+  healItems.filter(n => (itemCounts[n]||0) > 0).forEach(n => {
+    let f = foodTable[n];
+    let label = f.hp === 100 ? `${n}（HP全回復）` :
+      [f.hp > 0 ? `HP+${f.hp}` : '', f.mp > 0 ? `気力+${f.mp}` : ''].filter(Boolean).join(' / ');
+    createButton(`${n} （${label}）`).parent(actionPanel).mousePressed(() => {
+      // アイテム消費・回復・ターン消費
+      player.mp = constrain(player.mp - 1, 0, MAX_MP);
+      battle.turns++;
+      itemCounts[n]--;
+      if (itemCounts[n] <= 0) delete itemCounts[n];
+      if (f.hp === 100) player.hp = MAX_HP;
+      else {
+        player.hp = constrain(player.hp + f.hp, 0, MAX_HP);
+        player.mp = constrain(player.mp + f.mp, 0, MAX_MP);
+      }
+      battle.playerTurn = false;
+      updateBattleInfo();
+      updateParams();
+      let healMsg = f.hp === 100 ? `「${n}」を使った。体力が全回復した！` :
+        `「${n}」を使った。${f.hp>0?'体力+'+f.hp:''}${f.mp>0?' 気力+'+f.mp:''}`;
+      let enemyMsg = calcEnemyAction();
+      battle.playerTurn = true;
+      updateBattleInfo();
+      updateParams();
+      if (player.hp <= 0) {
+        showMessage(healMsg + '<br><span style="color:#f88">▶ ' + enemyMsg + '</span><br>体力が尽きた……', true, () => gameOver());
+      } else {
+        showMessage(healMsg + '<br><span style="color:#f88">▶ ' + enemyMsg + '</span>');
+        showBattleActions();
+      }
+    });
+  });
+  createButton('戻る').parent(actionPanel).mousePressed(() => showBattleActions());
+}
+
+// ？？？にアイテムを食わせるメニュー
+function showBattleFeedMenu() {
+  const healItems = ['りんご','小果実','うさぎ肉','狼の肉','干し肉','狼肉の燻製','薬草スープ','万能薬','救急キット'];
+  let feedCandidates = Object.keys(itemCounts).filter(n =>
+    (itemCounts[n]||0) > 0 && !healItems.includes(n) && !(n in weapons)
+  );
+  actionPanel.html('');
+  showMessage('何を食わせる？（1ターン消費・敵HP-3・そのターン攻撃なし）');
+  feedCandidates.forEach(n => {
+    createButton(`${n} ×${itemCounts[n]}`).parent(actionPanel).mousePressed(() => {
+      player.mp = constrain(player.mp - 1, 0, MAX_MP);
+      battle.turns++;
+      itemCounts[n]--;
+      if (itemCounts[n] <= 0) delete itemCounts[n];
+      battle.enemyHp = Math.max(0, battle.enemyHp - 3);
+      battle.feedThisTurn = true; // このターン強攻撃もキャンセル
+      battle.playerTurn = true;
+      updateBattleInfo();
+      updateParams();
+      if (battle.enemyHp <= 0) {
+        showMessage(`「${n}」を食わせた。……？？？は動かなくなった。`, true, () => endBattle(true));
+        return;
+      }
+      showMessage(`「${n}」を投げた。？？？はそれを食いついた。（HP-3）<br>敵の攻撃はなかった。`);
+      showBattleActions();
+    });
+  });
+  createButton('戻る').parent(actionPanel).mousePressed(() => showBattleActions());
 }
 
 // =====================
@@ -580,11 +806,19 @@ function playerBattleAction(type, weaponName, atk) {
   let msg = '';
 
   if (type === 'forward') {
-    battle.distance--;
-    msg = `前進した。距離：${battle.distance}`;
+    if (battle.isSeaBoss && Math.random() < 0.10) {
+      msg = '風に押し戻された！前進できなかった。';
+    } else {
+      battle.distance--;
+      msg = `前進した。距離：${battle.distance}`;
+    }
   } else if (type === 'backward') {
-    battle.distance++;
-    msg = `後退した。距離：${battle.distance}`;
+    if (battle.isSeaBoss && Math.random() < 0.10) {
+      msg = '波に流された！後退できなかった。';
+    } else {
+      battle.distance++;
+      msg = `後退した。距離：${battle.distance}`;
+    }
   } else if (type === 'escape') {
     // 距離6で逃走成功→層を-1（0以下にはならない）
     battle.active = false;
@@ -645,8 +879,29 @@ function playerBattleAction(type, weaponName, atk) {
 // =====================
 function calcEnemyAction() {
   let msg = '';
+
+  // 投げたターンはキャンセル
+  if (battle.feedThisTurn) {
+    battle.feedThisTurn = false;
+    battle.strongAttackCounter++; // カウンターは進む
+    return { msg: '？？？はそれを食べている……攻撃してこなかった。', isDead: false };
+  }
+
+  // ボス戦の場合：3ターンごとに強攻撃（射程1〜5）
+  if ((battle.isSeaBoss || battle.isNaoto)) {
+    battle.strongAttackCounter++;
+    if (battle.strongAttackCounter % 3 === 0) {
+      // 強攻撃：射程1〜5（どこにいても当たる）
+      let dmg = 30;
+      player.hp -= dmg;
+      player.hp = max(0, player.hp);
+      msg = `<span style="color:#ff6060">！？？？の強攻撃！${dmg} ダメージを受けた！（射程1〜5の全力攻撃）</span>`;
+      return { msg, isDead: player.hp <= 0 };
+    }
+  }
+
   if (battle.distance <= battle.enemyRange) {
-    // 射程内 → 攻撃
+    // 射程内 → 通常攻撃
     let dmg = battle.enemyAtk + floor(random(0, 2));
     player.hp -= dmg;
     player.hp = max(0, player.hp);
@@ -660,15 +915,60 @@ function calcEnemyAction() {
       msg = `${battle.enemyName}は様子を見ている。`;
     }
   }
-  // 死亡フラグを返り値に含める
   return { msg, isDead: player.hp <= 0 };
 }
 
+
+// =====================
+// 戦闘：観察ヒント
+// =====================
+function getBattleObserveHint() {
+  let turns_to_strong = (battle.isSeaBoss || battle.isNaoto)
+    ? 3 - (battle.strongAttackCounter % 3)
+    : null;
+
+  if (battle.isSeaBoss) {
+    let hints = [
+      `海面の怪物をじっと見る。距離${battle.distance}——射程2の攻撃が届く範囲だ。`,
+      `${turns_to_strong}ターン後に大きく体を膨らませてくる気がする。全力攻撃の前兆かもしれない。`,
+      '素材を投げると一瞬気をそらせる。攻撃してこない間に態勢を整えられるかもしれない。',
+      '射程2以上離れれば通常攻撃は届かない。ただし全力攻撃は射程5まで届くらしい。',
+    ];
+    return hints[Math.floor(Math.random() * hints.length)];
+  }
+
+  if (battle.isNaoto) {
+    let hints = [
+      `動きを観察する。距離${battle.distance}——射程2の攻撃が届く位置だ。`,
+      `${turns_to_strong}ターン後に大きく腕を振りかぶる構えをするかもしれない。それが全力攻撃の予兆だ。`,
+      '何かを投げると反射的に食いついてくる。その瞬間は攻撃してこない。',
+      '距離3以上保てば通常攻撃は届かない。ただし全力攻撃は距離5まで届く。',
+    ];
+    return hints[Math.floor(Math.random() * hints.length)];
+  }
+
+  // 通常戦闘
+  let e = enemyTypes[battle.enemyName];
+  if (!e) return `距離${battle.distance}で対峙している。`;
+  return `${battle.enemyName}を観察した。射程${e.range}、攻撃力${e.atk}程度の敵だ。距離${battle.distance}を保てば攻撃が届かない。`;
+}
 // =====================
 // 戦闘：終了（勝利）
 // =====================
 function endBattle(victory) {
   if (!victory) return;
+
+  // 海上ボス勝利
+  if (battle.isSeaBoss) {
+    showMessage(
+      '<span style="color:#ffd700;font-size:18px;font-weight:bold">？？？を倒した！</span>',
+      true,
+      () => endSeaBoss()
+    );
+    battle.active = false;
+    updateParams();
+    return;
+  }
 
   // 林ナオト戦専用処理
   if (battle.isNaoto) {

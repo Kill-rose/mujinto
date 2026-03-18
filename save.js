@@ -14,6 +14,7 @@ function saveGame() {
       keiState, keiTalkCount, forest8EventDone, keiHealDone, keiPlazaArrived,
       forest3EventDone,
       labUnlocked, labHasKey, labGunTaken, labNaotoMet, labNaotoDead,
+    hasLabRecord,
       labGlueMaterialTaken, currentRoom,
       keiLabTalkCounts: JSON.parse(JSON.stringify(keiLabTalkCounts)),
     };

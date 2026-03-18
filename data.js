@@ -180,6 +180,7 @@ let forest3EventDone = false; // 森3層イベント完了フラグ
 let forest8EventDone = false; // 森8層ケイ遭遇イベント完了フラグ
 let keiHealDone = false;      // ケイへのアイテム渡しイベント完了フラグ
 let keiPlazaArrived = false;  // ケイの広場合流イベント完了フラグ
+let hasLabRecord = false;     // 研究所の記録を持っているか（謎解きルート条件）
 
 // =====================
 // 制作画面

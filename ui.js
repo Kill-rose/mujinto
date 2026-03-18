@@ -51,10 +51,71 @@ function onMessageClick() {
 // =====================
 // オープニング
 // =====================
+
+// =====================
+// トランシーバーエンディング
+// =====================
+function showTransceiverEnding() {
+  clearUI();
+  container.html('');
+  let endDiv = createDiv().parent(container);
+  endDiv.elt.style.cssText = `
+    width:100%; height:100%;
+    display:flex; flex-direction:column;
+    justify-content:center; align-items:center;
+    text-align:center; padding:40px;
+    background: radial-gradient(ellipse at center, #0a1828 0%, #04080e 70%);
+  `;
+  let title = keiPlazaArrived ? 'ENDING: RESCUE' : 'ENDING: SIGNAL';
+  let story = keiPlazaArrived
+    ? `ヘリコプターは二人を乗せ、島を離れた。<br>
+       ケイは窓から島を眺めていた。<br>
+       「あの島のこと、いつか話せる日が来るといいですね」<br><br>
+       トランシーバーは、まだ手の中にある。`
+    : `ヘリコプターに乗り込んだ。<br>
+       島はどんどん小さくなっていく。<br><br>
+       あの島に何があったのか。まだ何も知らない。<br>
+       ただ、帰ることができた。`;
+  endDiv.html(`
+    <div style="font-family:Cinzel,serif;font-size:clamp(22px,4.5vw,48px);color:#80b8d8;letter-spacing:0.15em;margin-bottom:20px">${title}</div>
+    <div style="color:#d4d8cc;font-size:clamp(13px,1.8vw,20px);max-width:580px;line-height:1.9;margin-bottom:16px">${story}</div>
+    <div style="color:#7a8572;font-size:clamp(11px,1.4vw,16px)">経過時間：${elapsedTime} 時間</div>
+  `);
+  let btn = createButton('タイトルに戻る').parent(endDiv);
+  btn.elt.style.cssText = 'margin-top:32px;font-size:clamp(13px,1.8vw,18px);padding:10px 36px;background:transparent;border:1px solid #284a60;color:#80b8d8;cursor:pointer;';
+  btn.mousePressed(() => location.reload());
+}
 function showOpening() {
-  showMessage('主人公は一般人ですが、無人島に遭難してしまいました。<br>なんとかして脱出を試みよう！');
   actionPanel.html('');
   rightWindow.html('');
+
+  // オープニングテキスト（クリックで進む）
+  showMessage(
+    '2024年10月——<br>' +
+    'クルーズ船「さくら丸」は、太平洋上を航行していた。<br>' +
+    '船上では、見知らぬ誰かに声をかけられた記憶がある。<br>' +
+    '「この航路は景色がいいですよ」と、その人物は言った。',
+    true,
+    () => showMessage(
+      '気づいたとき、砂浜に倒れていた。<br><br>' +
+      '波の音。カモメの声。<br>' +
+      '周囲に人影はない。<br>' +
+      '……船は、沈んだのだ。',
+      true,
+      () => showMessage(
+        'ここはどこだ。<br>' +
+        '地図にない島。誰も知らない場所。<br><br>' +
+        '体はボロボロだが、動ける。<br>' +
+        'このまま死ぬわけにはいかない。',
+        true,
+        () => showTitleMenu()
+      )
+    )
+  );
+}
+
+function showTitleMenu() {
+  actionPanel.html('');
 
   createButton('ゲーム開始').parent(actionPanel).mousePressed(() => {
     state = 'game';
@@ -62,22 +123,20 @@ function showOpening() {
     showMainActions();
   });
 
-  // セーブデータがあれば「続きから」を表示
   if (localStorage.getItem('savedata')) {
     createButton('続きから').parent(actionPanel).mousePressed(() => {
       loadAndRefresh();
     });
   }
 
-  // READMEボタン
+  createButton('遊び方').parent(actionPanel).mousePressed(() => showHowToPlay());
+
   createButton('README').parent(actionPanel).mousePressed(() => {
     actionPanel.html('');
     textZone.elt.innerHTML = '';
-    // readme.md をfetchして表示
     fetch('readme.md')
       .then(r => r.text())
       .then(txt => {
-        // 簡易markdown→HTML変換（#見出しと改行のみ）
         let html = txt
           .replace(/^### (.+)$/gm, '<h3>$1</h3>')
           .replace(/^## (.+)$/gm, '<h2>$1</h2>')
@@ -86,8 +145,77 @@ function showOpening() {
         textZone.elt.innerHTML = html;
       })
       .catch(() => { textZone.elt.innerHTML = 'readme.md が見つかりませんでした。'; });
-    createButton('タイトルに戻る').parent(actionPanel).mousePressed(() => showOpening());
+    createButton('タイトルに戻る').parent(actionPanel).mousePressed(() => {
+      actionPanel.html('');
+      showTitleMenu();
+    });
   });
+}
+
+// =====================
+// 遊び方
+// =====================
+function showHowToPlay() {
+  const pages = [
+    // ページ1：基本
+    `<b>【遊び方 1/4：基本の流れ】</b><br><br>
+    このゲームは <b>テキストRPG</b> です。<br>
+    操作パネルのボタンを押して行動を選びます。<br><br>
+    ・<b>探索</b>……その場所でアイテムを探す。敵に遭遇することも。<br>
+    ・<b>移動</b>……別の場所へ移動する。<br>
+    ・<b>待機</b>……時間を経過させる。焚火があれば回復。<br>
+    ・<b>制作</b>……アイテムを作る。<b>広場でのみ可能。</b>`,
+
+    // ページ2：アイテム
+    `<b>【遊び方 2/4：アイテムの使い方】</b><br><br>
+    右パネルのアイテム一覧からアイテムを<b>タップ/クリックで選択</b>できます。<br><br>
+    ・<b>使用</b>……食べ物は食べる。設置できるものは設置する。<br>
+    　<span style="color:var(--accent)">→ 焚火・いかだは「使用」すると広場に設置されます</span><br>
+    ・<b>説明</b>……アイテムの情報を見る。使い方のヒントが書いてあります。<br>
+    ・<b>捨てる</b>……不要なアイテムを捨てる。`,
+
+    // ページ3：時間とストーリー
+    `<b>【遊び方 3/4：時間とストーリー】</b><br><br>
+    行動するたびに<b>時間が経過</b>します。<br>
+    時間によってイベントや選択肢が変わります。<br><br>
+    ・100時間……重要な変化が起きる（詳しくは探索で確かめよう）<br>
+    ・150時間……ある人物の状態が変わる<br><br>
+    <b>セリフや資料はよく読みましょう。</b>ヒントが隠れています。`,
+
+    // ページ4：脱出ルートと詰み防止
+    `<b>【遊び方 4/4：脱出ルートと注意点】</b><br><br>
+    脱出方法は複数あります。どれを目指すかで体験が変わります。<br><br>
+    ・<b>いかだ</b>……木材と紐で作れる。ただし<b>一人でないと乗れない</b>。<br>
+    ・<b>トランシーバー</b>……洞窟の奥にある。100時間以降に使える。<br>
+    ・<b>謎解きルート</b>……研究所にカギがある。<b>ある人物との協力が必要。</b><br><br>
+    <span style="color:var(--accent)">詰まったら「説明」ボタンや「資料」ボタンを読んでみよう。</span>`,
+  ];
+
+  let page = 0;
+  function showPage() {
+    showMessage(pages[page], true, () => {
+      page++;
+      if (page < pages.length) {
+        showPage();
+      } else {
+        actionPanel.html('');
+        showTitleMenu();
+      }
+    });
+    actionPanel.html('');
+    if (page < pages.length - 1) {
+      createButton('次へ').parent(actionPanel).mousePressed(() => {
+        page++;
+        showPage();
+      });
+    } else {
+      createButton('タイトルに戻る').parent(actionPanel).mousePressed(() => {
+        actionPanel.html('');
+        showTitleMenu();
+      });
+    }
+  }
+  showPage();
 }
 
 // =====================
@@ -250,23 +378,26 @@ function useItem(name) {
     return;
   }
 
-  // トランシーバー：クリア
+  // トランシーバー：クリア（100時間以降のみ動作）
   if (name === 'トランシーバー') {
+    if (elapsedTime < 100) {
+      showMessage('電源を入れたが、何も繋がらない。まだ時間が早いのかもしれない。');
+      return;
+    }
     showMessage(
-      'トランシーバーを使って助けを呼んだ。<br>' +
-      '「こちら救助隊です。位置を確認しました。今すぐ向かいます！」<br>' +
-      '……しばらくして、ヘリコプターの音が聞こえてきた。無事に救助された！',
+      'トランシーバーのスイッチを入れた。<br>' +
+      'ザザ……と雑音の後、声が聞こえた。<br>' +
+      '「こちら救助隊です。位置を確認しました。今すぐ向かいます！」',
       true,
       () => {
-        clearUI();
-        container.html('');
-        createDiv().parent(container)
-          .style('color','lime').style('font-size','40px')
-          .style('text-align','center').style('padding-top','160px')
-          .html('救助成功！<br><span style="font-size:24px">トランシーバーで助けを呼び、無事に帰還した。</span>');
-        createButton('タイトルに戻る').parent(container)
-          .style('font-size','22px').style('margin-top','30px')
-          .mousePressed(() => location.reload());
+        showMessage(
+          'しばらくして、ヘリコプターの音が近づいてきた。<br>' +
+          (keiPlazaArrived
+            ? 'ケイが隣に立っていた。「……よかった」と、小さく呟いた。'
+            : '砂浜に一人立って、空を見上げた。'),
+          true,
+          () => showTransceiverEnding()
+        );
       }
     );
     return;
@@ -315,10 +446,11 @@ function useItem(name) {
 
   // 研究所の記録：謎解きルートクリアに使用
   if (name === '研究所の記録') {
+    hasLabRecord = true;
     showMessage(
-      '「研究所の記録」を手に入れた。<br>' +
-      'この記録があれば、プロジェクトTIDALの真実を世に出せる。<br>' +
-      '<span style="color:#adf">（謎解きルートクリア条件を満たした。いかだか、トランシーバーで脱出しよう）</span>'
+      '「研究所の記録」を確認した。<br>' +
+      'プロジェクト・タイダルの全記録がここにある。これを持ち出せば証拠になる。<br>' +
+      '<span style="color:var(--accent)">（謎解きルートの条件を満たした。いかだかトランシーバーで脱出しよう）</span>'
     );
     return;
   }
@@ -331,20 +463,26 @@ function useItem(name) {
 // =====================
 function renderRecipeList() {
   showRecipes = true;
-  // infoOverlayを空にし、既存の制作UIを削除してから再描画
-  let overlay = select('#infoOverlay');
-  if (overlay) overlay.html('');
-  let oldList = select('#recipeList');
-  if (oldList) oldList.remove();
-  let oldBtns = select('#craftButtons');
-  if (oldBtns) oldBtns.remove();
-  let oldH2 = select('#recipeH2');
-  if (oldH2) oldH2.remove();
-  let rH2 = createElement('h2', '制作レシピ').parent(leftTop);
-  rH2.id('recipeH2');
-  rH2.style('margin', '0 0 6px 0');
 
-  let listDiv = createDiv().id('recipeList').parent(leftTop);
+  // 既存オーバーレイを削除して再生成
+  let oldOv = select('#recipeOverlay');
+  if (oldOv) oldOv.remove();
+
+  // スクロール位置を保存
+  let savedScroll = 0;
+  let oldListEl = document.getElementById('recipeList');
+  if (oldListEl) savedScroll = oldListEl.scrollTop;
+
+  // 全画面オーバーレイを作成
+  let overlay = createDiv().id('recipeOverlay').parent(container);
+
+  // タイトル
+  let rH2 = createElement('h2', '制作レシピ').parent(overlay);
+  rH2.id('recipeH2');
+
+  // レシピリスト
+  let listDiv = createDiv().id('recipeList').parent(overlay);
+  if (savedScroll > 0) setTimeout(() => { listDiv.elt.scrollTop = savedScroll; }, 0);
   for (let name in recipes) {
     let r = recipes[name];
     if (r.labOnly && !labGlueMaterialTaken) continue; // 研究所系：実験室探索後のみ表示
@@ -387,7 +525,11 @@ function renderRecipeList() {
   }
 
   let btnDiv = createDiv().id('craftButtons').parent(overlay);
-  let btnCraft = createButton('制作する').parent(btnDiv);
+  // 所要時間をボタンに表示
+  let craftLabel = selectedRecipe && recipes[selectedRecipe]
+    ? `制作する（${recipes[selectedRecipe].time}時間）`
+    : '制作する';
+  let btnCraft = createButton(craftLabel).parent(btnDiv);
   if (!selectedRecipe) btnCraft.attribute('disabled', 'true');
   btnCraft.mousePressed(() => { if (selectedRecipe) craftItem(selectedRecipe); });
   createButton('閉じる').parent(btnDiv).mousePressed(() => {
@@ -397,6 +539,7 @@ function renderRecipeList() {
     let ov = select('#recipeOverlay');
     if (ov) ov.remove();
     updateElapsedTime();
+    showMessage(''); // テキストゾーンをクリア
   });
 }
 
