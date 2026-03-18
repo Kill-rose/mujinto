@@ -396,8 +396,8 @@ button:disabled {
     width: 100%;
   }
 
-  #leftTop { flex: 2; }
-  #leftBottom { flex: 3; }
+  #leftTop { flex: 3; }
+  #leftBottom { flex: 2; }
 
   /* 右ウィンドウ：下部 縦並びに */
   #rightWindow {
@@ -471,6 +471,7 @@ button:disabled {
   #textZone {
     font-size: clamp(12px, 3.5vw, 17px);
     padding: 8px 10px;
+    max-height: 22vh;
   }
 
   .info-badge {
