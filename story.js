@@ -1,29 +1,3 @@
-function talkToKei() {
-  if (keiState === 'unknown') return;
-  if (keiTalkCount >= 3) {
-    showMessage('ケイ「……また話しかけてくれてありがとう。でも、もう伝えることは全部話した気がする。」');
-    return;
-  }
-  // 初回は「会った」フラグを立てる
-  if (keiState === 'forest_reachable') keiState = 'met';
-
-  let lines = keiDialogs[keiTalkCount];
-  keiTalkCount++;
-
-  // 台詞を順番にクリック待ちで表示
-  showKeiLines(lines, 0, () => {
-    // 3回目でフラグ成立
-    if (keiTalkCount >= 3) {
-      showMessage(
-        'ケイとの信頼が深まった。<br>' +
-        '<span style="color:#adf">（同行脱出フラグ成立）</span>'
-      );
-    }
-    showMainActions();
-  });
-}
-
-// ケイの台詞を1行ずつ表示
 function showKeiLines(lines, idx, onDone) {
   if (idx >= lines.length) { onDone(); return; }
   let prefix = idx < lines.length - 1 || keiTalkCount < 3 ? 'ケイ「' : '';
@@ -40,6 +14,20 @@ function showKeiLines(lines, idx, onDone) {
 // ケイ（広場合流後の会話）：ランダム世間話
 // =====================
 const keiPlazaRandomTalks = [
+  // ストーリーヒント
+  { cond: () => !labGlueMaterialTaken || !itemCounts['接着剤のもと'] && !itemCounts['接着剤'] && !itemCounts['カギのかけら'] && !labHasKey,
+    lines: ['ケイ：研究所の奥、まだ探索できていない場所があるかもしれません。\n実験室あたりを調べてみるといいかも。'] },
+  { cond: () => itemCounts['カギのかけら'] > 0 && !itemCounts['蛇の皮'] && !itemCounts['接着剤'],
+    lines: ['ケイ：森の奥に毒ヘビがいたような気が……。\n皮が何かの材料になるかもしれないですよ。'] },
+  { cond: () => itemCounts['蛇の皮'] > 0 && itemCounts['接着剤のもと'] > 0 && !itemCounts['接着剤'],
+    lines: ['ケイ：材料がそろってきましたね。\n広場で制作できますよ。'] },
+  { cond: () => itemCounts['接着剤'] > 0 && itemCounts['カギのかけら'] > 0 && !labHasKey && !itemCounts['どこかの鍵'],
+    lines: ['ケイ：接着剤とカギのかけら……もしかして鍵が作れるんじゃないですか？'] },
+  { cond: () => (labHasKey || itemCounts['どこかの鍵'] > 0) && currentRoom === null,
+    lines: ['ケイ：鍵ができましたね！\n研究所で使えるかも。行ってみましょう。'] },
+  { cond: () => labHasKey && elapsedTime >= 100 && !labNaotoMet,
+    lines: ['ケイ：研究所の廊下……なんか気配がしませんか。\n慎重に進んだ方がいいかも。'] },
+
   // 焚火関連
   { cond: () => hasCampfire && campfireFuel > 0,
     lines: ['ケイ：焚火、いいですね。', '少し落ち着きます。'] },
@@ -112,6 +100,83 @@ const keiLabDialogs = {
 let keiLabTalkCounts = { '廊下': 0, '研究室': 0, '実験室': 0, '倉庫': 0 };
 
 // 部屋ごとの資料テキスト
+
+// =====================
+// 資料アイテムの内容（説明から読める）
+// =====================
+const documentContents = {
+  '新聞の切れ端': `<b>【新聞の切れ端】</b><br>
+「——社の株価が急落。海洋研究部門の——により——」<br>
+「——名の乗客を乗せたクルーズ船『さくら丸』が消息を——」<br>
+日付：2024年10月`,
+
+  '濡れた手帳のページ': `<b>【濡れた手帳のページ】</b><br>
+「TIDALWAVE INSTITUTEの林という研究員に声をかけられた。<br>
+この航路は景色がいいと言っていた。<br>
+妙に親切だったが、今思えば——」<br>
+<i>ここで破れている</i>`,
+
+  '錆びた看板の写真': `<b>【錆びた看板（森3層）】</b><br>
+立入禁止<br>
+TIDALWAVE INSTITUTE<br>
+関係者以外の立入を固く禁ずる`,
+
+  '手書きメモ': `<b>【手書きメモ（森7層）】</b><br>
+「動物がおかしい。3ヶ月前から森の鳥が減った。<br>
+魚も浜に近づかなくなった。<br>
+先生はまだ信じてくれないだろうか。<br>
+——ナオト　2013年9月」`,
+
+  '実験ログ': `<b>【実験ログ（洞窟2層）】</b><br>
+プロジェクト：TIDAL　経過報告 第17回<br>
+被験者：篠原マスミ（No.3）松下トオル（No.4）<br>
+　　　　立川サユ（No.5）二條カズトモ（No.6）<br><br>
+No.3：海中適応率71%。感情の平坦化が見られる。<br>
+No.4：海中適応率88%。水への依存が強まっている。<br>
+No.6：海中適応率79%。攻撃性の上昇。隔離を推奨。<br>
+備考：No.7より被験者との個人的な接触を禁ずる旨の通達あり。`,
+
+  '金属扉のプレート': `<b>【金属扉のプレート（洞窟4層）】</b><br>
+TIDALWAVE INSTITUTE<br>
+第二研究棟 関係者専用<br>
+——製薬株式会社　設立2004年`,
+
+  '封鎖命令書': `<b>【封鎖命令書（洞窟探索）】</b><br>
+極秘　2014年3月<br>
+プロジェクトTIDAL　施設閉鎖に関する通達<br><br>
+No.6の脱走および研究員2名への——により、<br>
+本施設の継続運営は不可能と判断する。<br>
+被験者の処——については別紙参照。<br>
+島への航路情報を国際航路図より削除。`,
+
+  'ナオトの日記（前半）': `<b>【林ナオトの日記（前半）】</b><br>
+「2004年3月1日<br>
+今日、研究所が完成した。<br>
+ユキが死んでから8年。<br>
+あの日海が荒れていなければ、あの船が少し丈夫だったなら。<br>
+人は海で死ぬべきじゃない。<br>
+それだけを考えてここまで来た。<br>
+これは正しいことだと、まだ思っている。」`,
+
+  'ナオトの日記（後半）': `<b>【林ナオトの日記（後半）】</b><br>
+「2014年4月<br>
+施設は閉鎖されたが、私は残ることにした。<br>
+彼らを置いていけなかった。<br>
+トオルはもう海に帰った。戻ってこない。<br>
+マスミさんはまだここにいる。サユも。カズトモは……怒っている。<br>
+ユキ、私は間違えた。」`,
+
+  'ナオトのメモ': `<b>【ナオトのメモ（研究室）】</b><br>
+「もし誰かがここまで来たなら。<br>
+残りの記録はパスワードで守ってある。<br>
+答えは、私が研究を始めた日だ。<br>
+ユキが死んだ年の、3月1日。<br>
+そこに私の番号を足せ。」`,
+};
+
+// 資料入手フラグ（各資料は1回のみ入手可能）
+const documentObtained = {};
+
 const labDocuments = {
   '廊下': `<b>【廊下の壁の落書き】</b><br>
 「もう帰れない　2014.4」<br><br>
@@ -137,8 +202,7 @@ Password: ______<br>
 No.3：海中適応率71%。感情の平坦化が見られる。<br>
 No.4：海中適応率88%。水への依存が強まっている。<br>
 No.6：海中適応率79%。攻撃性の上昇。隔離を推奨。<br><br>
-備考：No.7より被験者との個人的な接触を禁ずる旨の通達あり。<br>
-<span style="color:#aaa">※No.7とは誰か、この時点ではわからない</span>`,
+備考：No.7より被験者との個人的な接触を禁ずる旨の通達あり。`,
 
   '倉庫': `<b>【棚の張り紙】</b><br>
 緊急備品リスト<br>
@@ -154,16 +218,42 @@ No.6：海中適応率79%。攻撃性の上昇。隔離を推奨。<br><br>
 // 研究所：移動
 // =====================
 function moveToLab(room) {
-  if (room === '研究室' && !labHasKey && !(itemCounts['研究室の鍵'] > 0)) {
-    showMessage('研究室は鍵がかかっている。どこかに鍵があるはずだ。');
+  // 廊下でどこかの鍵を持っていれば研究室を開錠
+  if (room === '廊下' && !labHasKey && (itemCounts['どこかの鍵'] > 0)) {
+    // 廊下移動時に鍵を自動で使うのではなく、useItemで使う設計のため何もしない
+  }
+  if (room === '研究室' && !labHasKey && !(itemCounts['どこかの鍵'] > 0)) {
+    // 強制挿入イベント：鍵穴を発見
+    currentRoom = '廊下'; // 廊下に留まる
+    passTime(1);
+    if (keiState === 'plaza' && keiPlazaArrived) {
+      showPortrait('kei');
+      showMessage(
+        '研究室の扉の前に立つと、頑丈な鍵穴があった。<br>' +
+        'このままでは開かない。',
+        true,
+        () => showMessage(
+          'ケイ：ちょっと待って。<br>カギのかけら、持ってませんか？<br>それを修復すれば開けられるかも。',
+          true,
+          () => { hidePortrait(); updateElapsedTime(); updateParams(); showMainActions(); }
+        )
+      );
+    } else {
+      showMessage(
+        '研究室の扉の前に立つと、頑丈な鍵穴があった。<br>' +
+        '何か鍵になるものが必要だ。',
+        false
+      );
+      updateElapsedTime(); updateParams(); showMainActions();
+    }
     return;
   }
-  // 研究室の鍵を持っていれば消費して開錠
-  if (room === '研究室' && !labHasKey && itemCounts['研究室の鍵'] > 0) {
+  // どこかの鍵を持っていれば消費して開錠
+  if (room === '研究室' && !labHasKey && itemCounts['どこかの鍵'] > 0) {
     labHasKey = true;
-    itemCounts['研究室の鍵']--;
-    if (itemCounts['研究室の鍵'] <= 0) delete itemCounts['研究室の鍵'];
-    showMessage('研究室の鍵で扉を開けた。');
+    itemCounts['どこかの鍵']--;
+    if (itemCounts['どこかの鍵'] <= 0) delete itemCounts['どこかの鍵'];
+    showMessage('鍵が合った。扉が開いた。');
   }
   currentRoom = room;
   exploreCooldown[room] = exploreCooldown[room] || 0;
@@ -174,11 +264,11 @@ function moveToLab(room) {
 
   // 廊下：林ナオトイベント
   if (room === '廊下') {
-    updateBgImage('洞窟'); // 廊下は洞窟背景を流用
-    if (!labNaotoMet && elapsedTime < 150) {
+    updateBgImage(room); // 部屋ごとの背景
+    if (!labNaotoMet && elapsedTime < 170) {
       labNaotoMet = true;
       // 真相→自害→カギのかけらドロップの流れ
-      showPortrait('naoto');
+      showPortrait('naoto', 'normal');
       showMessage(
         '廊下の奥から、ゆっくりと足音が近づいてきた。<br>' +
         '痩せ細った男が壁に寄りかかって立っていた。',
@@ -218,9 +308,9 @@ function moveToLab(room) {
         )
       );
       return;
-    } else if (!labNaotoMet && elapsedTime >= 150) {
+    } else if (!labNaotoMet && elapsedTime >= 170) {
       labNaotoMet = true;
-      showPortrait('naoto');
+      showPortrait('naoto', 'mutant');
       showMessage(
         '廊下の奥で何かが動く気配がした。<br>' +
         '振り返ると——人だったものが、こちらを向いていた。<br>' +
@@ -240,7 +330,7 @@ function moveToLab(room) {
     }
   }
 
-  updateBgImage('洞窟');
+  updateBgImage(currentRoom || '廊下'); // 部屋ごとの背景
   updateElapsedTime();
   updateParams();
   showMainActions();
@@ -284,6 +374,7 @@ function startBattleNaoto() {
 // =====================
 function showLabActions() {
   if (messageWaiting) return;
+  actionPanel.elt.style.visibility = 'visible';
   actionPanel.html('');
   let desc = labRoomDescriptions[currentRoom] || '';
   showMessage(`【研究所：${currentRoom}】　${desc}`);
@@ -310,16 +401,31 @@ function showLabActions() {
   }
 
   // ケイ会話（合流済みの場合）
-  if (keiState === 'plaza' && keiLabTalkCounts[currentRoom] < keiLabDialogs[currentRoom].length) {
-    let btn = createButton('会話：ケイ').parent(actionPanel);
-    btn.style('background-color', 'var(--bg-raised)');
-    btn.style('border-color', 'var(--accent-dim)');
-    btn.style('color', 'var(--accent)');
-    btn.mousePressed(() => {
-      let idx = keiLabTalkCounts[currentRoom];
-      keiLabTalkCounts[currentRoom]++;
-      showMessage(keiLabDialogs[currentRoom][idx], true, () => showLabActions());
-    });
+  if (keiState === 'plaza' && keiPlazaArrived) {
+    // 廊下で鍵を持っている場合の特別セリフ
+    if (currentRoom === '廊下' && (itemCounts['どこかの鍵'] > 0 || labHasKey)) {
+      let btnK = createButton('💬 会話').parent(actionPanel);
+      btnK.style('border-color', 'var(--accent-dim)');
+      btnK.style('color', 'var(--accent)');
+      btnK.mousePressed(() => {
+        showMessage(
+          'ケイ：その鍵……この廊下のどこかの扉に合うんじゃないですか？<br>ここで使ってみたらどうでしょう。',
+          true, () => showLabActions()
+        );
+      });
+    } else if (keiLabDialogs[currentRoom]) {
+      let btn = createButton('💬 会話').parent(actionPanel);
+      btn.style('border-color', 'var(--accent-dim)');
+      btn.style('color', 'var(--accent)');
+      btn.mousePressed(() => {
+        // 全部読んでもランダムでしゃべる
+        let dialogs = keiLabDialogs[currentRoom];
+        let idx = keiLabTalkCounts[currentRoom] < dialogs.length
+          ? keiLabTalkCounts[currentRoom]++
+          : Math.floor(Math.random() * dialogs.length);
+        showMessage(dialogs[idx], true, () => showLabActions());
+      });
+    }
   }
 }
 
@@ -384,11 +490,27 @@ function explorelab(room) {
 }
 
 function getLabItem(room) {
+  // 1回のみの資料アイテム
+  const roomDocs = {
+    '廊下':   'ナオトの日記（前半）',
+    '実験室': 'ナオトの日記（後半）',
+    '倉庫':   '封鎖命令書',
+  };
+  if (roomDocs[room] && !documentObtained[roomDocs[room]]) {
+    if (Math.random() < 0.3) {
+      documentObtained[roomDocs[room]] = true;
+      return roomDocs[room];
+    }
+  }
+  if (room === '研究室' && !documentObtained['ナオトのメモ']) {
+    documentObtained['ナオトのメモ'] = true;
+    return 'ナオトのメモ';
+  }
   const pools = {
-    '廊下':  ['救急キット', '骨', '石', null],
-    '研究室': ['薬草', '貴重な薬草', '研究メモ', null, null],
-    '実験室': ['毒の牙', '薬草', '骨', '実験記録', null],
-    '倉庫':  ['石', '鉄鉱石', '非常食', null],
+    '廊下':   ['救急キット', '骨', '石', null],
+    '研究室': ['薬草', '貴重な薬草', null, null],
+    '実験室': ['毒の牙', '薬草', '骨', null],
+    '倉庫':   ['石', '鉄鉱石', '非常食', null],
   };
   let pool = pools[room] || [null];
   return random(pool);

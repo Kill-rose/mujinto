@@ -1,17 +1,39 @@
 function setup() {
+  // コンテナ生成
   container   = createDiv().id('container');
   document.body.appendChild(container.elt);
+
+  // DOM全構築
   leftWindow  = createDiv().id('leftWindow').parent(container);
   leftTop     = createDiv().id('leftTop').parent(leftWindow);
-  // 経過時間・戦闘情報オーバーレイ（leftTopの中に1つだけ持つ）
   createDiv().id('infoOverlay').parent(leftTop);
-
   leftBottom  = createDiv().id('leftBottom').parent(leftWindow);
   textZone    = createDiv().id('textZone').parent(leftBottom);
   actionPanel = createDiv().id('actionPanel').parent(leftBottom);
   rightWindow = createDiv().id('rightWindow').parent(container);
+
+  updateBgImage('広場');
   updateElapsedTime();
-  showOpening();
+
+  showMessage('無人島サバイバル');
+  createButton('ゲーム開始').parent(actionPanel).mousePressed(() => {
+    actionPanel.html('');
+    state = 'game';
+    updateParams(true);
+    showMainActions();
+  });
+  if (localStorage.getItem('savedata')) {
+    createButton('続きから').parent(actionPanel).mousePressed(() => loadAndRefresh());
+  }
+  createButton('🔧 デバッグ').parent(actionPanel).mousePressed(() => {
+    debugMode = true;
+    player.hp = MAX_HP;
+    player.mp = MAX_MP;
+    actionPanel.html('');
+    state = 'game';
+    updateParams(true);
+    showMainActions();
+  });
 }
 
 // =====================
@@ -26,13 +48,21 @@ function showMessage(msg, waitForClick = false, afterFunc = null) {
     textZone.style('cursor', 'pointer');
     textZone.elt.addEventListener('click', onMessageClick);
     textZone.addClass('waiting');
-    actionPanel.style('visibility', 'hidden'); // クリック待ち中はactionPanelを隠す
+    // クリック待ち中はactionPanelをグレーアウト
+    if (actionPanel && actionPanel.elt) {
+      actionPanel.elt.style.opacity = '0.4';
+      actionPanel.elt.style.pointerEvents = 'none';
+    }
   } else {
     messageWaiting = false;
     nextAction = null;
     textZone.style('cursor', 'default');
     textZone.removeClass('waiting');
-    actionPanel.style('visibility', 'visible'); // 解除で再表示
+    // グレーアウト解除
+    if (actionPanel && actionPanel.elt) {
+      actionPanel.elt.style.opacity = '1';
+      actionPanel.elt.style.pointerEvents = 'auto';
+    }
   }
 }
 
@@ -42,7 +72,7 @@ function onMessageClick() {
   textZone.style('cursor', 'default');
   textZone.elt.removeEventListener('click', onMessageClick);
   textZone.removeClass('waiting');
-  actionPanel.style('visibility', 'visible');
+  if (actionPanel && actionPanel.elt) actionPanel.elt.style.visibility = 'visible';
   let action = nextAction;
   nextAction = null;
   if (typeof action === 'function') action();
@@ -153,6 +183,12 @@ function showOpening() {
 
   titleBtn('📖  遊び方', () => showTitleSubPage('howtoplay'), false);
   titleBtn('⚔  攻略',   () => showTitleSubPage('guide'), false);
+
+  // デバッグモードボタン（開発用）
+  titleBtn('🔧  デバッグ', () => {
+    debugMode = true;
+    startOpening();
+  }, false);
 }
 
 // 「開始」→オープニングテキスト→ゲームへ
@@ -173,12 +209,19 @@ function startOpening() {
   textZone    = createDiv().id('textZone').parent(leftBottom);
   actionPanel = createDiv().id('actionPanel').parent(leftBottom);
   rightWindow = createDiv().id('rightWindow').parent(container);
-  createElement('canvas').id('silhouetteCanvas').parent(leftWindow);
-  let cvs = document.getElementById('silhouetteCanvas');
-  if (cvs) { cvs.width = 160; cvs.height = 200; }
 
   updateBgImage('広場');
 
+  // ★ 診断用：ボタンが表示されるか確認
+  let testBtn = createButton('▶ クリックして進める').parent(actionPanel);
+  testBtn.mousePressed(() => {
+    actionPanel.html('');
+    // オープニングテキスト開始
+    runOpeningText();
+  });
+}
+
+function runOpeningText() {
   // オープニングテキスト
   showMessage(
     '2024年10月——<br>' +
@@ -200,14 +243,14 @@ function startOpening() {
         true,
         () => {
           state = 'game';
-          updateParams();
+          updateParams(true); // messageWaiting中でも強制描画
           showMainActions();
         }
       )
     )
   );
   actionPanel.html('');
-  rightWindow.html('');
+  // ※ rightWindow.html('')はここで呼ばない（updateParamsで構築済み）
 }
 
 // タイトル画面のサブページ（遊び方・攻略）
@@ -359,6 +402,15 @@ function showHowToPlay() {
 // leftTop：経過時間（通常時）
 // =====================
 function updateElapsedTime() {
+  // デバッグモード表示
+  let dbg = document.getElementById('debugBanner');
+  if (debugMode && !dbg) {
+    let b = document.createElement('div');
+    b.id = 'debugBanner';
+    b.style.cssText = 'position:fixed;top:0;right:0;background:#c0503a;color:#fff;font-size:12px;padding:2px 8px;z-index:9999;font-family:monospace;';
+    b.textContent = 'DEBUG MODE';
+    document.body.appendChild(b);
+  }
   if (!showRecipes && !battle.active) {
     let layerStr = '';
     if (currentRoom !== null) {
@@ -367,7 +419,7 @@ function updateElapsedTime() {
       layerStr = `　${currentPlace} ${placeLayers[currentPlace] + 1}層`;
     }
     // 背景画像を現在地に合わせて切り替え
-    updateBgImage(currentRoom ? '洞窟' : currentPlace);
+    updateBgImage(currentRoom || currentPlace);
     // シルエットcanvasをクリア（戦闘外は非表示）
       // infoOverlayにテキスト表示
     let overlay = select('#infoOverlay');
@@ -378,9 +430,17 @@ function updateElapsedTime() {
 // 背景画像を切り替える
 function updateBgImage(place) {
   // leftTop自体にbackground-imageを直接設定
-  const bgMap = { '広場': 'hiroba', '森': 'mori', '洞窟': 'doukutu' }; // ※ファイル名が doukutsu.jpg の場合は 'doukutsu' に変更
+  const bgMap = {
+    '広場':   'hiroba',
+    '森':     'mori',
+    '洞窟':   'doukutu',
+    '廊下':   'rouka',
+    '研究室': 'kenkyusitu',
+    '実験室': 'jikkensitu',
+    '倉庫':   'souko',
+  };
   let fname = bgMap[place] || 'hiroba';
-  leftTop.style('background-image', `url('${fname}.jpg')`);
+  leftTop.style('background-image', `url('${fname}.png'), url('${fname}.jpg')`);
   leftTop.style('background-size', 'cover');
   leftTop.style('background-position', 'center');
 }
@@ -390,8 +450,10 @@ function updateBgImage(place) {
 // =====================
 // rightWindow：ステータス＋アイテム一覧
 // =====================
-function updateParams() {
-  if (messageWaiting) return; // showRecipesのガードは外す（制作中もアイテム一覧を即時反映）
+function updateParams(force = false) {
+  // messageWaiting中は通常スキップ。ただしforce=trueなら強制描画
+  if (messageWaiting && !force) return;
+  if (!rightWindow || !rightWindow.elt) return; // rightWindowが未構築なら何もしない
   rightWindow.html('');
 
   let hpColor = player.hp <= 20 ? 'tomato' : '#eee';
@@ -420,7 +482,8 @@ function updateParams() {
     listDiv.html('<i>アイテムがありません。</i>');
   } else {
     for (let name in itemCounts) {
-      let div = createDiv(`${name} ×${itemCounts[name]}`).parent(listDiv);
+      let icon = itemIcons[name] || '▪';
+      let div = createDiv(`${icon} ${name} ×${itemCounts[name]}`).parent(listDiv);
       div.class('item-entry');
       if (selectedItem === name) div.addClass('selected');
       // ネイティブaddEventListenerでクロージャ選択（p5 mouseClickedバグ回避）
@@ -430,9 +493,46 @@ function updateParams() {
     }
   }
 
+  // 戦闘中：食べ物を「食わせる」ボタン（研究所エネミーのみ）
+  if (battle.active) {
+    let labEnemyNames = ['ウミウシ（変異体）', 'アンコウ（変異体）', 'タコ（変異体）'];
+    let isLabEnemy = labEnemyNames.includes(battle.enemyName);
+    if (isLabEnemy) {
+      const feedItems = ['りんご','小果実','うさぎ肉','狼の肉','干し肉','焼きうさぎ','焼き狼肉','焼き果実','焼きりんご','非常食'];
+      if (selectedItem && feedItems.includes(selectedItem)) {
+        let btnFeed = createButton('🍖 食わせる').parent(rightWindow);
+        btnFeed.style('margin-top', '6px');
+        btnFeed.style('border-color', 'var(--gold-dim)');
+        btnFeed.style('color', 'var(--gold)');
+        btnFeed.mousePressed(() => {
+          if (!selectedItem || !itemCounts[selectedItem]) return;
+          let fname = selectedItem;
+          itemCounts[fname]--;
+          if (itemCounts[fname] <= 0) { delete itemCounts[fname]; selectedItem = null; }
+          // ランダム効果：HP減少 or 行動停止1ターン
+          if (Math.random() < 0.5) {
+            let dmg = Math.floor(Math.random() * 4) + 3;
+            battle.enemyHp = max(0, battle.enemyHp - dmg);
+            showMessage(`「${fname}」を${battle.enemyName}に投げ与えた。<br>むさぼり食っている間に ${dmg} ダメージ！`);
+          } else {
+            battle.stunned = true;
+            showMessage(`「${fname}」を${battle.enemyName}に投げ与えた。<br>気が散って動きが止まった！（次ターン行動しない）`);
+          }
+          updateParams();
+          showBattleActions();
+        });
+      }
+    }
+  }
+
   // 使用・捨てるボタン（戦闘中は非表示）
   if (!battle.active) {
     let btnDiv = createDiv().id('itemButtons').parent(rightWindow);
+    // messageWaiting中はボタン群をグレーアウト
+    if (messageWaiting) {
+      btnDiv.style('opacity', '0.4');
+      btnDiv.style('pointer-events', 'none');
+    }
     let btnUse = createButton('使用').parent(btnDiv);
     if (!selectedItem) btnUse.attribute('disabled', 'true');
     btnUse.mousePressed(() => { if (selectedItem) useItem(selectedItem); });
@@ -442,15 +542,38 @@ function updateParams() {
     if (!selectedItem) btnDesc.attribute('disabled', 'true');
     btnDesc.mousePressed(() => {
       if (!selectedItem) return;
-      let desc = itemDescriptions[selectedItem] || '特に説明はない。';
       let prevMsg = textZone.elt.innerHTML;
-      showMessage(`【${selectedItem}】<br>${desc}`, true, () => {
-        showMessage(prevMsg);
-      });
+      // 資料アイテムはdocumentContentsから内容を表示
+      let content = (typeof documentContents !== 'undefined' && documentContents[selectedItem])
+        ? documentContents[selectedItem]
+        : null;
+      let desc = content || itemDescriptions[selectedItem] || '特に説明はない。';
+      showMessage(`${desc}`, true, () => { showMessage(prevMsg); });
     });
 
+    // 「焼く」ボタン：広場かつ焚火設置済み・焼けるアイテム選択時
+    if (currentPlace === '広場' && hasCampfire && campfireFuel > 0 && selectedItem && grillTable[selectedItem]) {
+      let btnGrill = createButton('焼く').parent(btnDiv);
+      btnGrill.style('color', 'var(--gold)');
+      btnGrill.mousePressed(() => {
+        let g = grillTable[selectedItem];
+        if (campfireFuel <= 0) { showMessage('焚火の燃料が足りない。'); return; }
+        campfireFuel -= g.fuel;
+        if (campfireFuel < 0) campfireFuel = 0;
+        itemCounts[selectedItem]--;
+        if (itemCounts[selectedItem] <= 0) { delete itemCounts[selectedItem]; }
+        let result = g.result;
+        addItem(result);
+        selectedItem = result;
+        let st = grilledFoodStats[result];
+        let prevGrill = textZone.elt.innerHTML;
+        showMessage(`「${result}」になった。<br>体力+${st.hp} / 気力+${st.mp}（食べると回復）`, true, () => { showMessage(prevGrill); updateParams(); });
+        updateParams();
+      });
+    }
+
     // 「渡す」ボタン：ケイがmet状態かつ未回復、回復系アイテム選択時
-    const healItems = ['りんご','小果実','うさぎ肉','狼の肉','干し肉','狼肉の燻製','薬草スープ','万能薬'];
+    const healItems = ['りんご','小果実','うさぎ肉','狼の肉','干し肉','肉と薬草の包み','薬草スープ','万能薬','救急キット','焼きうさぎ','焼き狼肉','焼き果実','焼きりんご','薬草'];
     if (keiState === 'met' && !keiHealDone && selectedItem && healItems.includes(selectedItem)) {
       let btnGive = createButton('渡す').parent(btnDiv);
       btnGive.style('border-color', 'var(--accent-dim)');
@@ -459,13 +582,14 @@ function updateParams() {
     }
 
     let btnDiscard = createButton('捨てる').parent(btnDiv);
-    if (!selectedItem) btnDiscard.attribute('disabled', 'true');
+    if (!selectedItem || (unconsumableItems && unconsumableItems.has(selectedItem))) btnDiscard.attribute('disabled', 'true');
     btnDiscard.mousePressed(() => {
       if (!selectedItem || !itemCounts[selectedItem]) return;
       let name = selectedItem;
+      let prev = textZone.elt.innerHTML;
       itemCounts[name]--;
       if (itemCounts[name] <= 0) { delete itemCounts[name]; selectedItem = null; }
-      showMessage(`「${name}」を捨てました。`);
+      showMessage(`「${name}」を捨てました。`, true, () => { showMessage(prev); updateParams(); });
       updateParams();
     });
   }
@@ -473,10 +597,28 @@ function updateParams() {
   // セーブ・ロードボタン（戦闘中以外は常時表示）
   if (!battle.active) {
     let saveDiv = createDiv().id('saveButtons').parent(rightWindow);
+    if (messageWaiting) {
+      saveDiv.style('opacity', '0.4');
+      saveDiv.style('pointer-events', 'none');
+    }
     createButton('セーブ').parent(saveDiv).mousePressed(() => saveGame());
     let btnLoad = createButton('ロード').parent(saveDiv);
     if (!localStorage.getItem('savedata')) btnLoad.attribute('disabled', 'true');
     btnLoad.mousePressed(() => loadAndRefresh());
+  }
+
+  // デバッグ用：全回復ボタン
+  if (debugMode) {
+    let dbgDiv = createDiv().parent(rightWindow);
+    dbgDiv.style('margin-top', '8px');
+    dbgDiv.style('border-top', '1px solid #c0503a');
+    dbgDiv.style('padding-top', '6px');
+    createButton('🔧 全回復').parent(dbgDiv).mousePressed(() => {
+      player.hp = MAX_HP;
+      player.mp = MAX_MP;
+      showMessage('[DEBUG] HP・MP全回復');
+      updateParams();
+    });
   }
 }
 
@@ -488,29 +630,42 @@ function useItem(name) {
 
   // 食べ物・回復アイテム
   const foodTable = {
-    'りんご':       { hp: 0,       mp: 10 },
-    '小果実':       { hp: 0,       mp: 10 },
-    'うさぎ肉':     { hp: 0,       mp: 15 },
-    '狼の肉':       { hp: 0,       mp: 20 },
-    '干し肉':       { hp: 15,      mp: 10 },
-    '狼肉の燻製':   { hp: 20,      mp: 20 },
-    '薬草スープ':   { hp: 20,      mp: 0  },
-    '万能薬':       { hp: MAX_HP,  mp: 0  }, // HP全回復
+    'りんご':         { hp: 0,      mp: 10 },
+    '小果実':         { hp: 0,      mp: 10 },
+    'うさぎ肉':       { hp: 0,      mp: 15 },
+    '狼の肉':         { hp: 0,      mp: 20 },
+    '干し肉':         { hp: 15,     mp: 10 },
+    '肉と薬草の包み': { hp: 15,     mp: 15 },
+    '薬草スープ':     { hp: 20,     mp: 0  },
+    '万能薬':         { hp: MAX_HP, mp: 0  },
+    // 焼いたアイテム
+    '焼きうさぎ':     { hp: 20,     mp: 20 },
+    '焼き狼肉':       { hp: 30,     mp: 25 },
+    '焼き果実':       { hp: 5,      mp: 15 },
+    '焼きりんご':     { hp: 10,     mp: 15 },
+    // 研究所・回復系
+    '薬草':           { hp: 5,      mp: 10 },
+    '救急キット':     { hp: 25,     mp: 0  },
+    '非常食':         { hp: 10,     mp: 10, instant: true }, // 時間消費なし
   };
   if (name in foodTable) {
     let f = foodTable[name];
-    let hpGain = f.hp === MAX_HP ? (MAX_HP - player.hp) : f.hp; // 全回復の場合は差分
     player.hp = constrain(player.hp + f.hp, 0, MAX_HP);
     player.mp = constrain(player.mp + f.mp, 0, MAX_MP);
     itemCounts[name]--;
     if (itemCounts[name] <= 0) { delete itemCounts[name]; selectedItem = null; }
     let msg = `「${name}」を使った。`;
-    if (f.hp === MAX_HP) msg += ` HPが全回復した！`;
+    if (f.hp === MAX_HP) msg += `<br>HPが全回復した！`;
     else {
-      if (f.hp > 0) msg += ` HP+${f.hp}。`;
-      if (f.mp > 0) msg += ` 気力+${f.mp}。`;
+      if (f.hp > 0) msg += `<br>体力 +${f.hp}。`;
+      if (f.mp > 0) msg += `<br>気力 +${f.mp}。`;
     }
-    showMessage(msg);
+    if (f.instant) {
+      msg += '<br>（時間経過なし）';
+      showMessage(msg);
+    } else {
+      showMessage(msg);
+    }
     updateParams();
     return;
   }
@@ -569,6 +724,21 @@ function useItem(name) {
     return;
   }
 
+  // どこかの鍵：廊下で使うと研究室が開く
+  if (name === 'どこかの鍵') {
+    if (currentRoom === '廊下') {
+      labHasKey = true;
+      itemCounts[name]--;
+      if (itemCounts[name] <= 0) { delete itemCounts[name]; selectedItem = null; }
+      showMessage('廊下の扉の鍵穴に差し込んだ。<br>……カチッと音がした。奥の扉が開いた。<br><span style="color:var(--accent)">（研究室が解放された）</span>');
+      updateParams();
+    } else {
+      let prev = textZone.elt.innerHTML;
+      showMessage('鍵穴が合う扉が見当たらない。', true, () => { showMessage(prev); });
+    }
+    return;
+  }
+
   // いかだ設置（広場のみ）
   if (name === 'いかだ') {
     if (currentPlace === '広場') {
@@ -592,7 +762,8 @@ function useItem(name) {
     return;
   }
 
-  showMessage(`「${name}」はここでは使えません。`);
+  let prevCant = textZone.elt.innerHTML;
+  showMessage(`「${name}」はここでは使えません。`, true, () => { showMessage(prevCant); });
 }
 
 // =====================
@@ -600,6 +771,11 @@ function useItem(name) {
 // =====================
 function renderRecipeList() {
   showRecipes = true;
+  // 制作中はactionPanelをグレーアウト
+  if (actionPanel && actionPanel.elt) {
+    actionPanel.elt.style.opacity = '0.4';
+    actionPanel.elt.style.pointerEvents = 'none';
+  }
 
   // 既存オーバーレイを削除して再生成
   let oldOv = select('#recipeOverlay');
@@ -610,8 +786,16 @@ function renderRecipeList() {
   let oldListEl = document.getElementById('recipeList');
   if (oldListEl) savedScroll = oldListEl.scrollTop;
 
-  // 全画面オーバーレイを作成
-  let overlay = createDiv().id('recipeOverlay').parent(container);
+  // leftTopをオーバーレイとして使用（背景画像の上に制作画面を表示）
+  let overlay = createDiv().id('recipeOverlay').parent(leftTop);
+  overlay.style('position', 'absolute');
+  overlay.style('inset', '0');
+  overlay.style('z-index', '10');
+  overlay.style('background', 'rgba(10,14,10,0.95)');
+  overlay.style('display', 'flex');
+  overlay.style('flex-direction', 'column');
+  overlay.style('padding', '8px');
+  overlay.style('overflow', 'hidden');
 
   // タイトル
   let rH2 = createElement('h2', '制作レシピ').parent(overlay);
@@ -653,7 +837,7 @@ function renderRecipeList() {
     '薬草スープ': '【回復】体力+20。体の傷を癒すスープ。',
     '万能薬': '【回復】体力全回復。最強の回復アイテム。',
     '接着剤': 'カギのかけらを修復するのに使える。蛇の皮を手に入れたら作れる。',
-    '研究室の鍵': '研究室の扉を開ける鍵。接着剤でカギのかけらを修復して作る。'
+    'どこかの鍵': '研究室の扉を開ける鍵。接着剤でカギのかけらを修復して作る。'
   };
         if (desc[n]) showMessage(desc[n]);
         renderRecipeList();
@@ -672,6 +856,11 @@ function renderRecipeList() {
   createButton('閉じる').parent(btnDiv).mousePressed(() => {
     showRecipes = false;
     selectedRecipe = null;
+    // actionPanelのグレーアウト解除
+    if (actionPanel && actionPanel.elt) {
+      actionPanel.elt.style.opacity = '1';
+      actionPanel.elt.style.pointerEvents = 'auto';
+    }
     // オーバーレイごと削除
     let ov = select('#recipeOverlay');
     if (ov) ov.remove();
@@ -684,20 +873,33 @@ function renderRecipeList() {
 // アイテム制作
 // =====================
 
-function showPortrait(who) {
-  // whoは 'kei'→s01.png、'naoto'→s02.png
-  let fileMap = { kei: 's01.png', naoto: 's02.png' };
+function showPortrait(who, variant) {
+  // who: 'kei' or 'naoto'
+  // variant: 'normal'(省略時), 'down', 'happy', 'worry'
+  const fileMap = {
+    kei: {
+      normal: 's01_normal.png',
+      down:   's01_down.png',
+      happy:  's01_happy.png',
+      worry:  's01_worry.png',
+    },
+    naoto: { normal: 's02.png' },
+  };
+  let varMap = fileMap[who];
+  if (!varMap) return;
+  let portraitFile = varMap[variant || 'normal'] || varMap['normal'];
   let file = fileMap[who];
-  if (!file) return;
+  if (!portraitFile) return;
   let existing = select('#portrait');
   if (existing) existing.remove();
-  let img = createImg(file, who);
+  let img = createImg(portraitFile, who);
   img.id('portrait');
-  img.parent(leftWindow);
+  img.parent(leftTop);  // leftTop内に配置
   img.style('position', 'absolute');
-  img.style('bottom', 'calc(40% + 10px)');
-  img.style('left', '20px');
-  img.style('height', '200px');
+  img.style('bottom', '0');        // 下隙間なし
+  img.style('left', '50%');        // 中央寄せ
+  img.style('transform', 'translateX(-50%)'); // 中央揃え
+  img.style('height', '95%');      // leftTopの高さいっぱい
   img.style('width', 'auto');
   img.style('z-index', '15');
   img.style('pointer-events', 'none');

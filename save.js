@@ -15,11 +15,13 @@ function saveGame() {
       forest3EventDone,
       labUnlocked, labHasKey, labGunTaken, labNaotoMet, labNaotoDead,
     hasLabRecord,
-      labGlueMaterialTaken, currentRoom,
+      labGlueMaterialTaken, currentRoom, snakeFirstKill,
+    cave6DoorFound, cave6TransceiverLost,
       keiLabTalkCounts: JSON.parse(JSON.stringify(keiLabTalkCounts)),
     };
     localStorage.setItem('savedata', JSON.stringify(data));
-    showMessage('セーブしました。（経過時間：' + elapsedTime + '時間）');
+    let prevSave = textZone ? textZone.elt.innerHTML : '';
+    showMessage('セーブしました。（経過時間：' + elapsedTime + '時間）', true, () => { if(prevSave) showMessage(prevSave); });
     updateParams(); // セーブボタンの状態更新
   } catch(e) {
     showMessage('セーブに失敗しました：' + e.message);
@@ -58,6 +60,9 @@ function loadGame() {
     labNaotoMet          = !!d.labNaotoMet;
     labNaotoDead         = !!d.labNaotoDead;
     labGlueMaterialTaken = !!d.labGlueMaterialTaken;
+    snakeFirstKill = !!d.snakeFirstKill;
+    cave6DoorFound = !!d.cave6DoorFound;
+    cave6TransceiverLost = !!d.cave6TransceiverLost;
     currentRoom          = d.currentRoom || null;
     if (d.keiLabTalkCounts) Object.assign(keiLabTalkCounts, d.keiLabTalkCounts);
     return true;

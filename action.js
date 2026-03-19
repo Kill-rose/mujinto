@@ -44,27 +44,30 @@ function giveItemToKei(itemName) {
   keiHealDone = true;
   keiState = 'plaza'; // 合流フラグ（後で広場に来る）
 
-  showPortrait('kei');
+  showPortrait('kei', 'down');
   showMessage(
     `「${itemName}」を差し出すと、ケイは両手で受け取り、すぐに口に入れた。<br>` +
     'しばらくして、顔に少し血色が戻ってきた。',
     true,
-    () => showMessage(
-      'ケイ：……ありがとうございます。少し楽になった。<br>' +
-      'まだ歩くのは難しいですけど、なんとか広場まで行けると思います。<br>' +
-      'そこで待ってます。',
-      true,
-      () => {
-        hidePortrait();
-        showMessage(
-          '彼はゆっくりと立ち上がり、木に寄りかかりながら歩き始めた。<br>' +
-          '<span style="color:var(--accent)">（ケイが広場に向かった）</span>',
-          false, null
-        );
-        updateParams();
-        showMainActions();
-      }
-    )
+    () => {
+      showPortrait('kei', 'happy');
+      showMessage(
+        'ケイ：……ありがとうございます。少し楽になった。<br>' +
+        'まだ歩くのは難しいですけど、なんとか広場まで行けると思います。<br>' +
+        'そこで待ってます。',
+        true,
+        () => {
+          hidePortrait();
+          showMessage(
+            '彼はゆっくりと立ち上がり、木に寄りかかりながら歩き始めた。<br>' +
+            '<span style="color:var(--accent)">（ケイが広場に向かった）</span>',
+            false, null
+          );
+          updateParams();
+          showMainActions();
+        }
+      );
+    }
   );
 }
 // 操作パネルからの燃料投入
@@ -94,9 +97,104 @@ function addFuelFromPanel() {
   createButton('戻る').parent(actionPanel)
     .mousePressed(() => showMainActions());
 }
+
+// ケイが倒れている間の専用アクションパネル
+function showForest8Actions() {
+  actionPanel.html('');
+  // 立ち絵を常時表示
+  if (!select('#portrait')) showPortrait('kei');
+
+  // 探索はできるが敵は出ない
+  createButton('探索').parent(actionPanel).mousePressed(() => {
+    exploreForest8Safe();
+  });
+
+  // 会話ボタン
+  createButton('会話').parent(actionPanel).mousePressed(() => {
+    showMessage(
+      'ケイ：……何か食べ物、ありませんか。<br>' +
+      '10日間、ほとんど何も食べていなくて。<br>' +
+      'この傷が治れば、一緒に動けるんですが。',
+      true,
+      () => { showForest8Actions(); }
+    );
+  });
+
+  // 移動（森8層に固定なので移動不可）
+  let btnMove = createButton('移動').parent(actionPanel);
+  btnMove.attribute('disabled', 'true');
+
+  showMessage('新川ケイが倒れている。何か渡せるものがあれば助けられるかもしれない。');
+  updateParams();
+}
+
+// 森8層での安全な探索（敵が出ない）
+function exploreForest8Safe() {
+  if ((exploreCooldown['森'] || 0) > 0) {
+    showMessage('ここからはこれ以上何も見つからなさそうだ。<br>時間を置いてみよう。');
+    return;
+  }
+  exploreCounts['森'] = (exploreCounts['森'] || 0) + 1;
+  passTime(1);
+  player.mp = constrain(player.mp - 1, 0, MAX_MP);
+  if (exploreCounts['森'] >= EXPLORE_LIMIT) {
+    exploreCooldown['森'] = 5;
+    exploreCounts['森'] = 0;
+  }
+  // 敵は出ない、アイテムのみ
+  let item = getRandomItem('森', 7);
+  addItem(item);
+  showMessage(`森を探索して「${item}」を入手した。`);
+  updateParams();
+  showForest8Actions();
+}
+
 function showMainActions() {
   if (messageWaiting) return;
+  actionPanel.elt.style.visibility = 'visible';
   if (currentRoom !== null) { showLabActions(); return; }
+
+  // 森8層到達時の強制挿入イベント（探索押下不要）
+  let layer8 = placeLayers['森'] || 0;
+  if (currentPlace === '森' && layer8 >= 7 && !forest8EventDone) {
+    forest8EventDone = true;
+    keiState = 'met';
+    actionPanel.html('');
+    showPortrait('kei');
+    showMessage(
+      '深い森の奥を進むと、木の根元に人が倒れているのが見えた。<br>' +
+      '駆け寄ると、若い男だった。足に深い傷を負っている。<br>' +
+      'ゆっくりと目を開け、こちらを見た。',
+      true,
+      () => showMessage(
+        'ケイ：人間……？本当に人間ですか。<br>' +
+        'よかった。もう10日も……動けなくて。',
+        true,
+        () => showMessage(
+          'ケイ：あなたも、あの船から？<br>' +
+          '僕は新川ケイ。港で林って人に声をかけられて、この航路を勧められたんです。',
+          true,
+          () => {
+            showMessage(
+              '彼は足の傷がひどく、今すぐ動くことはできないようだった。<br>' +
+              '何か回復するものを渡せれば、合流できるかもしれない。<br>' +
+              '<span style="color:var(--accent)">（アイテム一覧から回復系アイテムを選んで「渡す」ボタンを押そう）</span>',
+              false, null
+            );
+            updateParams();
+            showForest8Actions(); // ケイ倒れ中専用アクション
+          }
+        )
+      )
+    );
+    return;
+  }
+
+  // ケイが倒れている間は専用アクション
+  if (currentPlace === '森' && keiState === 'met' && !keiHealDone) {
+    showForest8Actions();
+    return;
+  }
 
   // 広場ケイ合流強制イベント
   if (currentPlace === '広場' && keiState === 'plaza' && !keiPlazaArrived
@@ -126,7 +224,9 @@ function showMainActions() {
     ? `（${placeLayers[currentPlace] + 1}層）` : '';
   showMessage(`現在地：${currentPlace}${layerStr}　${placeDescriptions[currentPlace]}`);
 
-  createButton('探索').parent(actionPanel).mousePressed(() => explore(currentPlace));
+  let btnEx = createButton('🔍 探索').parent(actionPanel);
+  btnEx.elt.style.borderColor = 'var(--accent-dim)';
+  btnEx.mousePressed(() => explore(currentPlace));
   // 森・洞窟では「前進」：確実に敵と遭遇する
   if (currentPlace === '森' || currentPlace === '洞窟') {
     createButton('前進').parent(actionPanel).mousePressed(() => {
@@ -137,21 +237,46 @@ function showMainActions() {
       startBattle(currentPlace);
     });
   }
-  createButton('移動').parent(actionPanel).mousePressed(() => showMoveOptions());
+  createButton('🗺 移動').parent(actionPanel).mousePressed(() => showMoveOptions());
   // 広場で焚火あり：待機非表示、焚火ボタンを表示
+  // デバッグ用：アイテム全入手
+  if (false && currentPlace === '広場') {
+    let btnAll = createButton('🔧 全アイテム').parent(actionPanel);
+    btnAll.elt.style.borderColor = '#c0503a';
+    btnAll.elt.style.color = '#e8a090';
+    btnAll.mousePressed(() => {
+      const allItems = [
+        '木の枝','草','石','木材','小果実','りんご',
+        'うさぎ肉','狼の肉','骨','牙','翼の膜','毒の牙','蛇の皮',
+        '鉄鉱石','純鉄','大きな木材','特別な木材','薬草','貴重な薬草','宝石',
+        '接着剤のもと','接着剤','カギのかけら',
+      ];
+      allItems.forEach(n => addItem(n, 5));
+      labGlueMaterialTaken = true;
+      showMessage('[DEBUG] アイテム全入手');
+      updateParams();
+    });
+  }
+
   if (currentPlace === '広場' && hasCampfire) {
-    createButton('焚火で休憩').parent(actionPanel).mousePressed(() => {
+    let btnCampRest = createButton('🔥 待機').parent(actionPanel);
+    btnCampRest.elt.style.borderColor = 'var(--gold-dim)';
+    btnCampRest.mousePressed(() => {
       player.mp = constrain(player.mp + 10, 0, MAX_MP);
       player.hp = constrain(player.hp + 5,  0, MAX_HP);
       showMessage('焚火の周りで休憩した。気力と体力が回復した。');
-      updateParams();
+      passTime(1);
+      showMainActions();
     });
-    createButton('燃料を投入').parent(actionPanel).mousePressed(() => addFuelFromPanel());
+    createButton('🪵 燃料投入').parent(actionPanel).mousePressed(() => addFuelFromPanel());
   } else {
-    createButton('待機').parent(actionPanel).mousePressed(() => waitAction());
+    createButton('⏳ 待機').parent(actionPanel).mousePressed(() => waitAction());
   }
   if (hasRaft) {
-    createButton('いかだ').parent(actionPanel).mousePressed(onRaftClick);
+    let btnRaft = createButton('🛶 いかだ').parent(actionPanel);
+    btnRaft.elt.style.borderColor = 'var(--gold-dim)';
+    btnRaft.elt.style.color = 'var(--gold)';
+    btnRaft.mousePressed(onRaftClick);
   }
 
   if (currentPlace === '広場' && keiState === 'plaza' && keiPlazaArrived) {
@@ -162,7 +287,62 @@ function showMainActions() {
   }
 
   // 広場でのみ制作可能
-  let btnCraftMain = createButton('制作').parent(actionPanel);
+  // 洞窟6層：扉発見後「武器を使用」ボタン
+  if (currentPlace === '洞窟' && (placeLayers['洞窟'] || 0) >= 5 && cave6DoorFound && !labUnlocked) {
+    let hasWeapon = Object.keys(weapons).some(w => (itemCounts[w] || 0) > 0);
+    let btnBreak = createButton('⚔ 武器で崩す').parent(actionPanel);
+    if (!hasWeapon) btnBreak.attribute('disabled', 'true');
+    btnBreak.elt.style.borderColor = 'var(--danger)';
+    btnBreak.elt.style.color = '#e8a090';
+    btnBreak.mousePressed(() => {
+      // トランシーバーが埋まる（あれば消失）
+      if (itemCounts['トランシーバー']) {
+        delete itemCounts['トランシーバー'];
+        cave6TransceiverLost = true;
+      }
+      labUnlocked = true;
+      showMessage(
+        '武器で壁を砕くと、轟音とともに瓦礫が崩れ落ちた。<br>' +
+        '……その先に、錆びた金属製の扉が現れた。<br>' +
+        '<span style="color:var(--accent)">（研究所への入口が開いた）</span>',
+        true, () => { updateElapsedTime(); updateParams(); showMainActions(); }
+      );
+      updateParams();
+    });
+  }
+
+  // 洞窟6層：金属板ボタン
+  if (currentPlace === '洞窟' && (placeLayers['洞窟'] || 0) >= 5) {
+    let btnPlate = createButton('🪧 金属板').parent(actionPanel);
+    btnPlate.elt.style.borderColor = '#555';
+    btnPlate.mousePressed(() => {
+      let prev = textZone.elt.innerHTML;
+      showMessage(
+        '<b>【金属扉のプレート】</b><br>' +
+        'TIDALWAVE INSTITUTE<br>' +
+        '第二研究棟 関係者専用<br>' +
+        '——製薬株式会社　設立2004年',
+        true, () => showMessage(prev)
+      );
+    });
+  }
+
+  // 森・洞窟での後退（層-1）ボタン
+  if ((currentPlace === '森' || currentPlace === '洞窟') && (placeLayers[currentPlace] || 0) > 0) {
+    let btnRetreat = createButton('⬇ 後退').parent(actionPanel);
+    btnRetreat.elt.style.borderColor = '#555';
+    btnRetreat.mousePressed(() => {
+      placeLayers[currentPlace] = max(0, (placeLayers[currentPlace] || 0) - 1);
+      exploreCooldown[currentPlace] = 0;
+      exploreCounts[currentPlace] = 0;
+      let newL = placeLayers[currentPlace];
+      showMessage(`${currentPlace}の${newL + 1}層に戻った。`);
+      updateElapsedTime();
+      showMainActions();
+    });
+  }
+
+  let btnCraftMain = createButton('🔨 制作').parent(actionPanel);
   if (currentPlace !== '広場') btnCraftMain.attribute('disabled', 'true');
   btnCraftMain.mousePressed(() => {
     if (currentPlace !== '広場') { showMessage('制作は広場でのみ行えます。'); return; }
@@ -356,10 +536,9 @@ function moveTo(place) {
   currentRoom = null; // 研究所から出た場合リセット
   // 森・洞窟から他の場所へ移動すると層が-1（0以下にはならない）
   if ((currentPlace === '森' || currentPlace === '洞窟') && place !== currentPlace) {
-    let prev = placeLayers[currentPlace];
-    placeLayers[currentPlace] = max(0, prev - 1);
-    if (prev > 0) {
-      showMessage(`${currentPlace}から帰った。次回は ${placeLayers[currentPlace] + 1}層からになる。`);
+    // ケイ未回復中は森8層を固定（層変更なし）
+    if (!(currentPlace === '森' && keiState === 'met' && !keiHealDone)) {
+      placeLayers[currentPlace] = max(0, (maxLayers[currentPlace] || 0) - 1);
     }
   }
   currentPlace = place;
@@ -393,40 +572,7 @@ function explore(place) {
 
   let layer = (place === '森' || place === '洞窟') ? placeLayers[place] : 0;
 
-  // 森8層強制イベント（ケイ遭遇、初回のみ）
-  if (place === '森' && layer >= 7 && !forest8EventDone) {
-    forest8EventDone = true;
-    keiState = 'met';
-    showPortrait('kei');
-    showMessage(
-      '深い森の奥、木の根元に人が倒れているのが見えた。<br>' +
-      '駆け寄ると、若い男だった。足に深い傷を負っている。<br>' +
-      'ゆっくりと目を開け、こちらを見た。',
-      true,
-      () => showMessage(
-        'ケイ：人間……？本当に人間ですか。<br>' +
-        'よかった。もう10日も……動けなくて。',
-        true,
-        () => showMessage(
-          'ケイ：あなたも、あの船から？<br>' +
-          '僕は新川ケイ。港で林って人に声をかけられて……この航路を勧められたんです。',
-          true,
-          () => {
-            hidePortrait();
-            showMessage(
-              '彼は足の傷がひどく、今すぐ動くことはできないようだった。<br>' +
-              '何か回復するものを渡せれば、合流できるかもしれない。<br>' +
-              '<span style="color:var(--accent)">（アイテム一覧から回復系アイテムを選んで「渡す」ボタンを押そう）</span>',
-              false, null
-            );
-            updateParams();
-            showMainActions();
-          }
-        )
-      )
-    );
-    return;
-  }
+  // 森8層イベントはshowMainActionsで強制挿入
 
   // 森3層到達イベント（初回のみ）
   if (place === '森' && layer >= 2 && !forest3EventDone) {
@@ -441,9 +587,35 @@ function explore(place) {
     return;
   }
 
-  // 洞窟6層目：崩落で研究所への道が開く（100時間経過後のみ）
-  if (place === '洞窟' && layer >= 5 && !labUnlocked) {
-    if (elapsedTime >= 100) {
+  // 洞窟6層目の特殊イベント
+  if (place === '洞窟' && layer >= 5) {
+    // トランシーバー入手（100時間未満・未入手）
+    if (elapsedTime < 150 && !itemCounts['トランシーバー'] && !cave6TransceiverLost) {
+      let cave6Count = (exploreCounts[place] || 0);
+      if (cave6Count <= 1) {
+        // 初回探索：金属箱を発見
+        addItem('トランシーバー');
+        showMessage(
+          '瓦礫の隙間に錆びた金属箱を発見した。<br>中に古い<b>トランシーバー</b>が入っていた！<br>' +
+          '<span style="color:var(--accent)">（使用すると助けを呼べる）</span>',
+          true, () => { updateElapsedTime(); updateParams(); showMainActions(); }
+        );
+        updateParams();
+        return;
+      }
+    }
+    // 5回探索で扉発見メッセージ
+    if ((exploreCounts[place] || 0) >= 4 && !labUnlocked && !cave6DoorFound) {
+      cave6DoorFound = true;
+      showMessage(
+        '瓦礫の奥に、金属製の扉らしきものが見える。<br>' +
+        '壁を掘れば入れるかもしれない……何か使えるものがあれば。',
+        true, () => { updateElapsedTime(); updateParams(); showMainActions(); }
+      );
+      return;
+    }
+    // 研究所解放（100時間以降）
+    if (elapsedTime >= 100 && !labUnlocked) {
       labUnlocked = true;
       showMessage(
         '深部を進むと、崩落した壁の向こうに金属製の扉が見えた。<br>' +
@@ -451,11 +623,8 @@ function explore(place) {
         '<span style="color:#adf">（移動先に「研究所：廊下」が追加された）</span>',
         true, () => { updateElapsedTime(); updateParams(); showMainActions(); }
       );
-    } else {
-      showMessage('深部まで来たが、崩落した瓦礫が道を塞いでいる。まだ進めそうにない。');
-      updateParams();
+      return;
     }
-    return;
   }
 
   let rand = random();
@@ -463,9 +632,10 @@ function explore(place) {
   if (place === '広場') {
     // 広場：85%アイテム、15%何もなし
     if (rand < 0.85) {
-      let item = getRandomItem(place, layer);
-      addItem(item);
-      showMessage(`${place}を探索して「${item}」を入手した。`);
+      let count = Math.random() < 0.25 ? 2 : 1;
+      let items = [];
+      for (let i = 0; i < count; i++) { let it = getRandomItem(place, layer); addItem(it); items.push(it); }
+      showMessage(`${place}を探索して「${items.join('・')}」を入手した。`);
     } else {
       showMessage(`${place}を探索したが、何も見つからなかった。`);
     }
@@ -476,8 +646,8 @@ function explore(place) {
     if (rand < battleChance) {
       startBattle(place);
     } else if (rand < 0.90) {
-      // 層が高いほどアイテムを多く入手
-      let itemCount = 1 + floor(layer / 3); // 3層ごとに1個追加
+      // 層が高いほど多く、基本でも20%で2個
+      let itemCount = 1 + floor(layer / 3) + (Math.random() < 0.20 ? 1 : 0);
       let msgs = [];
       for (let i = 0; i < itemCount; i++) {
         let item = getRandomItem(place, layer);
@@ -498,13 +668,33 @@ function getRandomItem(place, layer = 0) {
   let pool;
   if (place === '広場') {
     // 広場：焚火燃料になる木の枝・草多め
-    pool = ['木の枝', '木の枝', '小果実', '草', '草', '石'];
+    pool = ['木の枝', '木の枝', '小果実', '草', '草', '草', '石'];
+    // 広場：漂流物資料（1回のみ）
+    if (!documentObtained['新聞の切れ端'] && Math.random() < 0.15) {
+      documentObtained['新聞の切れ端'] = true; return '新聞の切れ端';
+    }
+    if (!documentObtained['濡れた手帳のページ'] && Math.random() < 0.12) {
+      documentObtained['濡れた手帳のページ'] = true; return '濡れた手帳のページ';
+    }
   } else if (place === '森') {
-    pool = ['木材', '木の枝', '草', 'りんご'];
+    // 森の資料（1回のみ・層条件）
+    if (layer >= 4 && !documentObtained['錆びた看板の写真'] && Math.random() < 0.25) {
+      documentObtained['錆びた看板の写真'] = true; return '錆びた看板の写真';
+    }
+    if (layer >= 6 && !documentObtained['手書きメモ'] && Math.random() < 0.25) {
+      documentObtained['手書きメモ'] = true; return '手書きメモ';
+    }
+    pool = ['木材', '木の枝', '草', '草', 'りんご'];
     if (layer >= 3) pool.push('大きな木材', '薬草', '薬草');
     if (layer >= 6) pool.push('特別な木材', '貴重な薬草');
   } else {
-    // 洞窟：コインを削除（使い道なし）、素材中心に
+    // 洞窟の資料（1回のみ・層条件）
+    if (layer >= 1 && !documentObtained['実験ログ'] && Math.random() < 0.25) {
+      documentObtained['実験ログ'] = true; return '実験ログ';
+    }
+    if (layer >= 3 && !documentObtained['金属扉のプレート'] && Math.random() < 0.25) {
+      documentObtained['金属扉のプレート'] = true; return '金属扉のプレート';
+    }
     pool = ['石', '石', '木材'];
     if (layer >= 3) pool.push('鉄鉱石', '鉄鉱石', '宝石');
     if (layer >= 6) pool.push('純鉄', '純鉄');
@@ -564,22 +754,14 @@ function passTime(hours) {
   for (let p in exploreCooldown) {
     exploreCooldown[p] = max(0, exploreCooldown[p] - hours);
   }
-  // 焚火の燃料消費（1時間ごとに1燃料消費）
-  if (hasCampfire) {
-    campfireFuel -= hours;
-    if (campfireFuel <= 0) {
-      campfireFuel = 0;
-      hasCampfire = false;
-      // メッセージに追記
-      let cur = textZone.html();
-      showMessage(cur + '<br><span style="color:orange">⚠ 焚火の燃料が尽きた。</span>');
-    }
-  }
+  // 焚火燃料は時間経過で減少しない（明示的な投入のみ）
   if (player.mp <= 0) {
     player.hp -= 5 * hours;
     showMessage(textZone.html() + '<br><span style="color:tomato">気力が0なので体力が減少した。</span>');
   } else if (player.mp >= 40) {
-    player.hp += 2 * hours;
+    // 広場で焚火あり：HP回復UPボーナス
+    let hpRegen = (currentPlace === '広場' && hasCampfire) ? 5 : 2;
+    player.hp += hpRegen * hours;
   }
   player.hp = constrain(player.hp, 0, MAX_HP);
   player.mp = constrain(player.mp, 0, MAX_MP);
@@ -592,6 +774,30 @@ function passTime(hours) {
 // =====================
 // 戦闘：開始
 // =====================
+function startBattleLab(room) {
+  // 研究所専用エネミーをランダム選択
+  let labEnemies = ['ウミウシ（変異体）', 'アンコウ（変異体）', 'タコ（変異体）'];
+  let name = labEnemies[Math.floor(Math.random() * labEnemies.length)];
+  let e = enemyTypes[name];
+  battle.active     = true;
+  battle.enemyName  = name;
+  battle.enemyHp    = Math.floor(Math.random() * (e.hp[1] - e.hp[0] + 1)) + e.hp[0];
+  battle.enemyMaxHp = battle.enemyHp;
+  battle.enemyAtk   = e.atk;
+  battle.enemyRange = e.range;
+  battle.distance   = 4;
+  battle.playerTurn = true;
+  battle.place      = room;
+  battle.turns      = 0;
+  battle.isNaoto    = false;
+  state = 'battle';
+  let rangeHint = e.range > 1 ? `<br><span style="color:#aaa">（射程${e.range}：距離${e.range+1}以上で安全）</span>` : '';
+  updateBattleInfo();
+  updateParams();
+  showMessage(`${name}が現れた！<br>${e.desc}${rangeHint}`);
+  showBattleActions();
+}
+
 function startBattle(place) {
   let layer = placeLayers[place] || 0;
   // minLayer以下の敵のみ出現（層に応じた敵を絞り込む）
@@ -643,28 +849,29 @@ function updateBattleInfo() {
 // 戦闘：プレイヤーアクション表示
 // =====================
 function showBattleActions() {
+  actionPanel.elt.style.visibility = 'visible';
   actionPanel.html('');
 
   // 前進（距離>1のとき有効）
-  let btnFwd = createButton('前進').parent(actionPanel);
+  let btnFwd = createButton('⬆ 前進').parent(actionPanel);
   if (battle.distance <= 1) btnFwd.attribute('disabled', 'true');
   btnFwd.mousePressed(() => playerBattleAction('forward'));
 
   // 距離6のとき後退→逃走に変える
   if (battle.distance >= 6) {
-    createButton('逃走').parent(actionPanel)
+    let btnEsc = createButton('🚪 逃走').parent(actionPanel); btnEsc.elt.style.borderColor='var(--danger)'; btnEsc.elt.style.color='#e8a090'; btnEsc
       .mousePressed(() => playerBattleAction('escape'));
   } else {
-    createButton('後退').parent(actionPanel)
+    createButton('⬇ 後退').parent(actionPanel)
       .mousePressed(() => playerBattleAction('backward'));
   }
 
   // 待機
-  createButton('待機').parent(actionPanel).mousePressed(() => playerBattleAction('wait'));
+  createButton('⏸ 待機').parent(actionPanel).mousePressed(() => playerBattleAction('wait'));
 
-  // 素手（距離1のみ）
+  // 素手（距離1のみ・気力あり）
   if (battle.distance <= 1) {
-    createButton('素手（射程1, 攻撃力1）').parent(actionPanel)
+    createButton('👊 素手（射程1 / 攻撃力1）').parent(actionPanel)
       .mousePressed(() => playerBattleAction('attack', '素手', 1));
   }
 
@@ -685,7 +892,7 @@ function showBattleActions() {
   const healItems = ['りんご','小果実','うさぎ肉','狼の肉','干し肉','狼肉の燻製','薬草スープ','万能薬','救急キット'];
   let hasHeal = healItems.some(n => (itemCounts[n] || 0) > 0);
   if (hasHeal) {
-    createButton('使用').parent(actionPanel).mousePressed(() => showBattleHealMenu());
+    createButton('アイテム').parent(actionPanel).mousePressed(() => showBattleHealMenu());
   }
 
   // 観察ボタン
@@ -739,14 +946,16 @@ function showBattleHealMenu() {
       updateParams();
       let healMsg = f.hp === 100 ? `「${n}」を使った。体力が全回復した！` :
         `「${n}」を使った。${f.hp>0?'体力+'+f.hp:''}${f.mp>0?' 気力+'+f.mp:''}`;
-      let enemyMsg = calcEnemyAction();
+      let _eri = calcEnemyAction();
+      let enemyMsgItem = typeof _eri === 'string' ? _eri : (_eri.msg || '');
+      let itemDead     = typeof _eri === 'object' ? !!_eri.isDead : false;
       battle.playerTurn = true;
       updateBattleInfo();
       updateParams();
-      if (player.hp <= 0) {
-        showMessage(healMsg + '<br><span style="color:#f88">▶ ' + enemyMsg + '</span><br>体力が尽きた……', true, () => gameOver());
+      if (itemDead || player.hp <= 0) {
+        showMessage(healMsg + '<br><span style="color:#f88">▶ ' + enemyMsgItem + '</span><br>体力が尽きた……', true, () => gameOver());
       } else {
-        showMessage(healMsg + '<br><span style="color:#f88">▶ ' + enemyMsg + '</span>');
+        showMessage(healMsg + '<br><span style="color:#f88">▶ ' + enemyMsgItem + '</span>');
         showBattleActions();
       }
     });
@@ -789,17 +998,27 @@ function showBattleFeedMenu() {
 // =====================
 function playerBattleAction(type, weaponName, atk) {
   if (!battle.playerTurn) return;
-
   // 行動ごとに気力-1
   player.mp = constrain(player.mp - 1, 0, MAX_MP);
   battle.turns++;
 
   // 気力0で30%行動失敗（逃走は失敗しない）
-  if (player.mp <= 0 && type !== 'escape' && Math.random() < 0.30) {
-    battle.playerTurn = false;
+  if (player.mp <= 0 && type === 'attack' && Math.random() < 0.30) {
+    // 行動失敗：即座に敵行動を計算して一緒に表示
+    let _erf = calcEnemyAction();
+    let failEnemyMsg  = typeof _erf === 'string' ? _erf : (_erf.msg || '');
+    let failEnemyDead = typeof _erf === 'object' ? !!_erf.isDead : false;
+    battle.playerTurn = true;
     updateBattleInfo();
     updateParams();
-    showMessage('気力が尽きて……行動に失敗した。', true, () => enemyBattleAction());
+    let failCombined = '気力が尽きて……行動に失敗した。' +
+      '<br><span style="color:#f88">▶ ' + failEnemyMsg + '</span>';
+    if (failEnemyDead || player.hp <= 0) {
+      showMessage(failCombined + '<br><span style="color:tomato">体力が尽きた……</span>', true, () => gameOver());
+    } else {
+      showMessage(failCombined);
+      showBattleActions();
+    }
     return;
   }
 
@@ -839,9 +1058,11 @@ function playerBattleAction(type, weaponName, atk) {
   } else if (type === 'wait') {
     msg = '待機した。';
   } else if (type === 'attack') {
-    let dmg = atk + floor(random(0, 2)); // 攻撃力 + 0or1 のブレ
+    let dmg = atk + floor(random(0, 2));
     battle.enemyHp -= dmg;
-    msg = `${weaponName}で攻撃！${battle.enemyName}に ${dmg} ダメージ。`;
+    let pAtkStr = weaponName === '素手'
+      ? `殴りかかった` : `${weaponName}で攻撃した`;
+    msg = `${pAtkStr}！${battle.enemyName}に ${dmg} ダメージ。`;
     if (battle.enemyHp <= 0) {
       battle.enemyHp = 0;
       updateBattleInfo();
@@ -853,7 +1074,9 @@ function playerBattleAction(type, weaponName, atk) {
   }
 
   // プレイヤー行動後すぐ敵行動を計算し、1つにまとめて表示
-  let { msg: enemyMsg, isDead } = calcEnemyAction();
+  let _er = calcEnemyAction();
+  let enemyMsg = typeof _er === 'string' ? _er : (_er.msg || '');
+  let isDead   = typeof _er === 'object' ? !!_er.isDead : false;
 
   battle.playerTurn = true;
   updateBattleInfo();
@@ -896,7 +1119,7 @@ function calcEnemyAction() {
       player.hp -= dmg;
       player.hp = max(0, player.hp);
       msg = `<span style="color:#ff6060">！？？？の強攻撃！${dmg} ダメージを受けた！（射程1〜5の全力攻撃）</span>`;
-      return { msg, isDead: player.hp <= 0 };
+      if (player.hp <= 0) msg += '<!-- isDead -->';  return { msg, isDead: player.hp <= 0 };
     }
   }
 
@@ -905,7 +1128,9 @@ function calcEnemyAction() {
     let dmg = battle.enemyAtk + floor(random(0, 2));
     player.hp -= dmg;
     player.hp = max(0, player.hp);
-    msg = `${battle.enemyName}の攻撃！${dmg} ダメージを受けた。`;
+    let atkDescs = e && e.atkDesc ? e.atkDesc : ['攻撃してきた'];
+    let atkStr = atkDescs[Math.floor(Math.random() * atkDescs.length)];
+    msg = `${battle.enemyName}に${atkStr}！${dmg} ダメージを受けた。`;
   } else {
     // 射程外：70%で前進、30%で様子見
     if (random() < 0.7) {
@@ -915,7 +1140,7 @@ function calcEnemyAction() {
       msg = `${battle.enemyName}は様子を見ている。`;
     }
   }
-  return { msg, isDead: player.hp <= 0 };
+  if (player.hp <= 0) msg += '<!-- isDead -->';  return { msg, isDead: player.hp <= 0 };
 }
 
 
@@ -999,8 +1224,13 @@ function endBattle(victory) {
   // 層が上がるほどドロップ量が増加
   let dropBonus = floor(layer / 2); // 2層ごとにドロップ+1
   let drops = [];
+  // 初回討伐の必須ドロップ
+  if (e.firstDrop && !snakeFirstKill) {
+    snakeFirstKill = true;
+    addItem(e.firstDrop);
+    drops.push(e.firstDrop);
+  }
   for (let d of e.drops) {
-    // ボーナス分追加でドロップ判定
     let times = 1 + dropBonus;
     for (let i = 0; i < times; i++) {
       if (random() < d.chance) {
@@ -1031,16 +1261,13 @@ function endBattle(victory) {
   let nextLayer = placeLayers[place] + 1;
 
   // ターン数/4 時間経過（回復なし）
-  let timePassed = Math.max(1, Math.floor(battle.turns / 4));
+  let timePassed = Math.max(0, Math.floor(battle.turns / 2));
   elapsedTime += timePassed;
   // クールダウン減少（通常のpassTimeは使わない＝回復なし）
   for (let p in exploreCooldown) {
     exploreCooldown[p] = max(0, exploreCooldown[p] - timePassed);
   }
-  if (hasCampfire) {
-    campfireFuel -= timePassed;
-    if (campfireFuel <= 0) { campfireFuel = 0; hasCampfire = false; }
-  }
+  // 焚火燃料は戦闘時間でも減少しない
   updateElapsedTime();
 
   battle.active = false;
@@ -1075,28 +1302,5 @@ function endBattle(victory) {
 // =====================
 // ケイ（森での会話）
 // =====================
-const keiDialogs = [
-  // 1回目：初対面
-  [
-    '……人間？本当に人間？',
-    'よかった。10日ぶりに人の声を聞いた。',
-    'あなたも船から？　あの船、おかしかった。',
-    '出発前に港で、林って人に話しかけられなかった？',
-  ],
-  // 2回目
-  [
-    '洞窟の奥から機械の音がする。',
-    '誰かがまだいると思う。でも……怖くて近づけなかった。',
-    'この島、地図にないんだよ。調べたから。',
-    'なんで私たち、ここに来たんだろう。',
-  ],
-  // 3回目
-  [
-    '林って人、出発の前日も港にいたんだ。',
-    '乗客に声かけて回ってた。',
-    'あの船に乗せたかったのかな、誰かを。',
-    '……それとも、乗せたくなかったのかな。',
-    '（ケイとの信頼が深まった）',
-  ],
-];
+
 
