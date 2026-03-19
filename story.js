@@ -56,7 +56,7 @@ const keiPlazaRandomTalks = [
 function talkToKeiPlaza() {
   let candidates = keiPlazaRandomTalks.filter(t => t.cond());
   let talk = random(candidates);
-  showPortrait('kei');
+  showPortrait('kei', 'default');
   showKeiLines(talk.lines, 0, () => { hidePortrait(); showMainActions(); });
 }
 
@@ -116,25 +116,18 @@ const documentContents = {
 妙に親切だったが、今思えば——」<br>
 <i>ここで破れている</i>`,
 
-  '錆びた看板の写真': `<b>【錆びた看板（森3層）】</b><br>
-立入禁止<br>
-TIDALWAVE INSTITUTE<br>
-関係者以外の立入を固く禁ずる`,
-
   '手書きメモ': `<b>【手書きメモ（森7層）】</b><br>
 「動物がおかしい。3ヶ月前から森の鳥が減った。<br>
 魚も浜に近づかなくなった。<br>
 先生はまだ信じてくれないだろうか。<br>
 ——ナオト　2013年9月」`,
 
-  '実験ログ': `<b>【実験ログ（洞窟2層）】</b><br>
-プロジェクト：TIDAL　経過報告 第17回<br>
-被験者：篠原マスミ（No.3）松下トオル（No.4）<br>
-　　　　立川サユ（No.5）二條カズトモ（No.6）<br><br>
-No.3：海中適応率71%。感情の平坦化が見られる。<br>
-No.4：海中適応率88%。水への依存が強まっている。<br>
-No.6：海中適応率79%。攻撃性の上昇。隔離を推奨。<br>
-備考：No.7より被験者との個人的な接触を禁ずる旨の通達あり。`,
+  '実験ログ': `<b>【実験ログの断片（洞窟の壁に貼られた紙）】</b><br>
+プロジェクト：TIDAL<br>
+「……適応率は目標を超えた。被験者たちは島に適応しつつある。<br>
+しかし予期せぬ副作用——攻撃性の上昇、感情の消失——が見られる。<br>
+このまま続けるべきか……」<br><br>
+<span style="color:#aaa">（ページが破れており、続きは読めない）</span>`,
 
   '金属扉のプレート': `<b>【金属扉のプレート（洞窟4層）】</b><br>
 TIDALWAVE INSTITUTE<br>
@@ -166,12 +159,13 @@ No.6の脱走および研究員2名への——により、<br>
 マスミさんはまだここにいる。サユも。カズトモは……怒っている。<br>
 ユキ、私は間違えた。」`,
 
-  'ナオトのメモ': `<b>【ナオトのメモ（研究室）】</b><br>
-「もし誰かがここまで来たなら。<br>
-残りの記録はパスワードで守ってある。<br>
-答えは、私が研究を始めた日だ。<br>
-ユキが死んだ年の、3月1日。<br>
-そこに私の番号を足せ。」`,
+  'ナオトのメモ': `<b>【ナオトのメモ（研究室の引き出し）】</b><br>
+「被験者たちへ。<br>
+君たちを人として扱わなかった。<br>
+研究の名目で、好奇心の名目で——本当のことを言えば、<br>
+ユキを失った痛みから逃げるために、<br>
+私は君たちを使った。<br>
+それが真実だ。すまなかった。—N」`,
 };
 
 // 資料入手フラグ（各資料は1回のみ入手可能）
@@ -187,22 +181,21 @@ const labDocuments = {
 
   '研究室': `<b>【机の上のメモ（手書き）】</b><br>
 「パスワードは私が最初に選んだ数字。<br>
-研究を始めた日のこと、覚えているか。<br>
-ユキが死んだあの年の、3月1日。<br>
-そこに私の番号を足せ。」<br><br>
+ユキが死んだ年——その年に、私の番号をあわせたものだ。」<br><br>
 <b>【端末ログイン画面】</b><br>
 TIDALWAVE INSTITUTE TERMINAL<br>
-Password: ______<br>
-※6桁の数字で入力`,
+Password: _____<br>
+※5桁の数字で入力`,
 
-  '実験室': `<b>【実験ログ（印刷物・水濡れ）】</b><br>
-プロジェクト：TIDAL　経過報告 第17回<br>
-被験者：篠原マスミ（No.3）松下トオル（No.4）<br>
-　　　　立川サユ（No.5）二條カズトモ（No.6）<br><br>
-No.3：海中適応率71%。感情の平坦化が見られる。<br>
-No.4：海中適応率88%。水への依存が強まっている。<br>
-No.6：海中適応率79%。攻撃性の上昇。隔離を推奨。<br><br>
-備考：No.7より被験者との個人的な接触を禁ずる旨の通達あり。`,
+  '実験室': `<b>【実験記録（最終ページ・手書き追記あり）】</b><br>
+プロジェクト：TIDAL　最終報告<br>
+2014年2月——<br><br>
+No.3（マスミ）：海中への完全移行を確認。島南部の海域に定住。<br>
+No.4（トオル）：行方不明。海に戻ったと思われる。<br>
+No.5（サユ）：研究所内に留まっている。コミュニケーション可能。<br>
+No.6（カズトモ）：<span style="color:#f88">脱走。行方不明。接触危険。</span><br><br>
+<i>手書き追記：「私（No.7）も、もう長くはない。<br>
+変異は思ったより速かった。—N」</i>`,
 
   '倉庫': `<b>【棚の張り紙】</b><br>
 緊急備品リスト<br>
@@ -211,13 +204,24 @@ No.6：海中適応率79%。攻撃性の上昇。隔離を推奨。<br><br>
 ・救急キット<br><br>
 <b>【床に落ちたメモ】</b><br>
 「フレアガンは奥の棚の裏。<br>
-いざというときのために残した。　—N」`,
+いざというときのために残した。　—No.7（H.N）」`,
 };
 
 // =====================
 // 研究所：移動
 // =====================
 function moveToLab(room) {
+  // 廊下のナオトイベントを通過（labNaotoMet）していないと廊下以外に進めない
+  if (room !== '廊下' && !labNaotoMet) {
+    showMessage('廊下の先に何かいる気配がする。まず廊下を確認する必要がある。');
+    return;
+  }
+  // ナオトと対峙中（未撃破・未自害）は廊下以外に進めない
+  if (room !== '廊下' && labNaotoMet && !labNaotoDead) {
+    showMessage('廊下でまだ何かがいる。先に廊下を通らないといけない。');
+    return;
+  }
+
   // 廊下でどこかの鍵を持っていれば研究室を開錠
   if (room === '廊下' && !labHasKey && (itemCounts['どこかの鍵'] > 0)) {
     // 廊下移動時に鍵を自動で使うのではなく、useItemで使う設計のため何もしない
@@ -227,7 +231,7 @@ function moveToLab(room) {
     currentRoom = '廊下'; // 廊下に留まる
     passTime(1);
     if (keiState === 'plaza' && keiPlazaArrived) {
-      showPortrait('kei');
+      showPortrait('kei', 'impatience');
       showMessage(
         '研究室の扉の前に立つと、頑丈な鍵穴があった。<br>' +
         'このままでは開かない。',
@@ -365,7 +369,7 @@ function startBattleNaoto() {
     );
   } else {
     showMessage('？？？が現れた！　距離：3', false);
-    showBattleActions();
+    _typeOnDone = () => { showBattleActions(); };
   }
 }
 
@@ -379,13 +383,26 @@ function showLabActions() {
   let desc = labRoomDescriptions[currentRoom] || '';
   showMessage(`【研究所：${currentRoom}】　${desc}`);
 
-  createButton('探索').parent(actionPanel).mousePressed(() => explorelab(currentRoom));
-  createButton('移動').parent(actionPanel).mousePressed(() => showMoveOptions());
-  createButton('待機').parent(actionPanel).mousePressed(() => waitAction());
+  createButton('🔍 探索').parent(actionPanel).mousePressed(() => explorelab(currentRoom));
+  createButton('🚶 移動').parent(actionPanel).mousePressed(() => showMoveOptions());
+  createButton('💤 待機').parent(actionPanel).mousePressed(() => waitAction());
 
-  // 資料ボタン
+  // 資料ボタン（部屋ごとに名称変更）
   if (labDocuments[currentRoom]) {
-    createButton('資料').parent(actionPanel).mousePressed(() => {
+    const docBtnLabels = {
+      '廊下':  '🪧 落書き',
+      '研究室': '📋 机のメモ',
+      '実験室': '🧪 実験ログ',
+      '倉庫':  '📋 棚の張り紙',
+    };
+    // 研究室：ナオトのメモが発見済みなら追加ボタン
+    if (currentRoom === '研究室' && documentObtained['ナオトのメモ']) {
+      createButton('📋 ナオトのメモ').parent(actionPanel).mousePressed(() => {
+        showMessage(documentContents['ナオトのメモ'] || '', true, () => showLabActions());
+      });
+    }
+    let btnLabel = docBtnLabels[currentRoom] || '📄 資料';
+    createButton(btnLabel).parent(actionPanel).mousePressed(() => {
       showMessage(labDocuments[currentRoom], true, () => showLabActions());
     });
   }
@@ -393,10 +410,10 @@ function showLabActions() {
   // 研究室PC
   if (currentRoom === '研究室') {
     if (!hasLabRecord) {
-      createButton('PCを操作').parent(actionPanel).mousePressed(() => showPasswordInput());
+      createButton('💻 PCを操作').parent(actionPanel).mousePressed(() => showPasswordInput());
     } else {
       // 記録入手後はパスワード入力不要、救助信号を送れる
-      createButton('PCを操作').parent(actionPanel).mousePressed(() => showLabPCMenu());
+      createButton('💻 PCを操作').parent(actionPanel).mousePressed(() => showLabPCMenu());
     }
   }
 
@@ -418,12 +435,12 @@ function showLabActions() {
       btn.style('border-color', 'var(--accent-dim)');
       btn.style('color', 'var(--accent)');
       btn.mousePressed(() => {
-        // 全部読んでもランダムでしゃべる
         let dialogs = keiLabDialogs[currentRoom];
         let idx = keiLabTalkCounts[currentRoom] < dialogs.length
           ? keiLabTalkCounts[currentRoom]++
           : Math.floor(Math.random() * dialogs.length);
-        showMessage(dialogs[idx], true, () => showLabActions());
+        if (currentRoom !== '研究室') showPortrait('kei', 'default');
+        showMessage(dialogs[idx], true, () => { hidePortrait(); showLabActions(); });
       });
     }
   }
@@ -465,7 +482,7 @@ function explorelab(room) {
   // 研究所は戦闘確率低め（5%）
   let rand = random();
   if (rand < 0.05) {
-    startBattle('洞窟'); // 研究所の敵は洞窟系で代用
+    startBattleLab(currentRoom); // 研究所専用の魚モンスター
     return;
   }
 
@@ -503,8 +520,7 @@ function getLabItem(room) {
     }
   }
   if (room === '研究室' && !documentObtained['ナオトのメモ']) {
-    documentObtained['ナオトのメモ'] = true;
-    return 'ナオトのメモ';
+    documentObtained['ナオトのメモ'] = true; // フラグのみ
   }
   const pools = {
     '廊下':   ['救急キット', '骨', '石', null],
@@ -521,12 +537,12 @@ function getLabItem(room) {
 // =====================
 function showPasswordInput() {
   actionPanel.html('');
-  showMessage('端末にパスワードを入力してください。（6桁の数字）');
+  showMessage('端末にパスワードを入力してください。（5桁の数字）');
 
   let input = createElement('input');
   input.attribute('type', 'text');
-  input.attribute('maxlength', '6');
-  input.attribute('placeholder', '000000');
+  input.attribute('maxlength', '5');
+  input.attribute('placeholder', '00000');
   input.style('font-size', '18px');
   input.style('padding', '6px 10px');
   input.style('background', 'var(--bg-deep)');
@@ -547,8 +563,8 @@ function showPasswordInput() {
 }
 
 function checkPassword(val) {
-  // 正解：200431（2004年3月1日 + No.7）
-  if (val === '200431') {
+  // 正解：19967（ユキの死亡年1996 + 林ナオトの被験者番号7）
+  if (val === '19967') {
     showMessage(
       '<b>【端末：アクセス許可】</b><br><br>' +
       'プロジェクトTIDALの真の目的：<br>' +

@@ -26,6 +26,7 @@ function craftItem(name) {
 // アイテム追加
 // =====================
 function addItem(name, count = 1) {
+  if (!name || name === 'undefined') return; // undefined防止
   itemCounts[name] = (itemCounts[name] || 0) + count;
 }
 
@@ -44,13 +45,13 @@ function giveItemToKei(itemName) {
   keiHealDone = true;
   keiState = 'plaza'; // 合流フラグ（後で広場に来る）
 
-  showPortrait('kei', 'down');
+  showPortrait('kei', 'impatience');
   showMessage(
     `「${itemName}」を差し出すと、ケイは両手で受け取り、すぐに口に入れた。<br>` +
     'しばらくして、顔に少し血色が戻ってきた。',
     true,
     () => {
-      showPortrait('kei', 'happy');
+      showPortrait('kei', 'default');
       showMessage(
         'ケイ：……ありがとうございます。少し楽になった。<br>' +
         'まだ歩くのは難しいですけど、なんとか広場まで行けると思います。<br>' +
@@ -102,7 +103,7 @@ function addFuelFromPanel() {
 function showForest8Actions() {
   actionPanel.html('');
   // 立ち絵を常時表示
-  if (!select('#portrait')) showPortrait('kei');
+  if (!select('#portrait')) showPortrait('kei', 'impatience');
 
   // 探索はできるが敵は出ない
   createButton('探索').parent(actionPanel).mousePressed(() => {
@@ -160,7 +161,7 @@ function showMainActions() {
     forest8EventDone = true;
     keiState = 'met';
     actionPanel.html('');
-    showPortrait('kei');
+    showPortrait('kei', 'impatience');
     showMessage(
       '深い森の奥を進むと、木の根元に人が倒れているのが見えた。<br>' +
       '駆け寄ると、若い男だった。足に深い傷を負っている。<br>' +
@@ -196,12 +197,12 @@ function showMainActions() {
     return;
   }
 
-  // 広場ケイ合流強制イベント
+  // 広場ケイ合流強制イベント：アイテムを渡した後に広場へ戻れば即合流
   if (currentPlace === '広場' && keiState === 'plaza' && !keiPlazaArrived
-      && maxLayers['森'] >= 3 && elapsedTime >= 150) {
+      && keiHealDone) {
     keiPlazaArrived = true;
     actionPanel.html('');
-    showPortrait('kei');
+    showPortrait('kei', 'default');
     showMessage(
       '広場に戻ると、見覚えのある人物が焚火の近くに座っていた。<br>' +
       '新川ケイだ。足を引きずりながらも、なんとかたどり着いたらしい。',
@@ -222,20 +223,38 @@ function showMainActions() {
   actionPanel.html('');
   let layerStr = (currentPlace === '森' || currentPlace === '洞窟')
     ? `（${placeLayers[currentPlace] + 1}層）` : '';
-  showMessage(`現在地：${currentPlace}${layerStr}　${placeDescriptions[currentPlace]}`);
+  // 探索直後でなければ場所の状況説明を表示
+  if (!_suppressLocationMsg) {
+    showMessage(`現在地：${currentPlace}${layerStr}　${placeDescriptions[currentPlace]}`);
+  }
+  _suppressLocationMsg = false;
 
   let btnEx = createButton('🔍 探索').parent(actionPanel);
   btnEx.elt.style.borderColor = 'var(--accent-dim)';
   btnEx.mousePressed(() => explore(currentPlace));
-  // 森・洞窟では「前進」：確実に敵と遭遇する
+  // 森・洞窟での「前進」ボタン（上限：森10層、洞窟6層）
   if (currentPlace === '森' || currentPlace === '洞窟') {
-    createButton('前進').parent(actionPanel).mousePressed(() => {
-      passTime(1);
-      player.mp = constrain(player.mp - 1, 0, MAX_MP);
-      updateParams();
-      showMessage(`${currentPlace}を奥へと進んだ……敵と遭遇した！`);
-      startBattle(currentPlace);
-    });
+    let cd  = exploreCooldown[currentPlace] || 0;
+    let cnt = exploreCounts[currentPlace]   || 0;
+    let curLayer = placeLayers[currentPlace] || 0;
+    let maxLayer = currentPlace === '森' ? 9 : 5; // 森:10層(idx9)、洞窟:6層(idx5)
+    let atMax = curLayer >= maxLayer;
+    if (!atMax && (cd > 0 || cnt >= EXPLORE_LIMIT)) {
+      // 探索し切った（クールダウン中）→ 前進ボタン出現
+      // 探索で敵を倒していれば、必要撃破数を1減らすボーナス
+      let bonus = placeExploreKillBonus[currentPlace] ? 1 : 0;
+      let layer = placeLayers[currentPlace] || 0;
+      let need  = Math.max(1, ((layer <= 3) ? 1 : 2) - bonus);
+      let label = '前進';
+      createButton(label).parent(actionPanel).mousePressed(() => {
+        passTime(1);
+        player.mp = constrain(player.mp - 1, 0, MAX_MP);
+        updateParams();
+        showMessage(`${currentPlace}を奥へと進んだ……敵と遭遇した！`);
+        battle.isAdvance = true; // 前進による戦闘フラグ
+        startBattle(currentPlace);
+      });
+    }
   }
   createButton('🗺 移動').parent(actionPanel).mousePressed(() => showMoveOptions());
   // 広場で焚火あり：待機非表示、焚火ボタンを表示
@@ -280,7 +299,7 @@ function showMainActions() {
   }
 
   if (currentPlace === '広場' && keiState === 'plaza' && keiPlazaArrived) {
-    let keiBtn = createButton('ケイと話す').parent(actionPanel);
+    let keiBtn = createButton('会話').parent(actionPanel);
     keiBtn.style('border-color', 'var(--accent-dim)');
     keiBtn.style('color', 'var(--accent)');
     keiBtn.mousePressed(() => talkToKeiPlaza());
@@ -312,7 +331,7 @@ function showMainActions() {
   }
 
   // 洞窟6層：金属板ボタン
-  if (currentPlace === '洞窟' && (placeLayers['洞窟'] || 0) >= 5) {
+  if (currentPlace === '洞窟' && (placeLayers['洞窟'] || 0) >= 3 && documentObtained['金属扉のプレート']) {
     let btnPlate = createButton('🪧 金属板').parent(actionPanel);
     btnPlate.elt.style.borderColor = '#555';
     btnPlate.mousePressed(() => {
@@ -408,11 +427,7 @@ function startSeaBoss() {
       () => showBattleActions()
     );
   } else {
-    showMessage(
-      '巨大な怪物がいかだに迫ってくる！<br>戦うしかない。',
-      false, null
-    );
-    showBattleActions();
+    showBattleMessage('巨大な怪物がいかだに迫ってくる！<br>戦うしかない。', false, () => showBattleActions());
   }
 }
 
@@ -514,8 +529,12 @@ function showMoveOptions() {
     rooms.forEach(room => {
       if (currentRoom === room) return; // 現在部屋はスキップ
       let btn = createButton(`研究所：${room}`).parent(actionPanel);
-      // 研究室は鍵が必要
-      if (room === '研究室' && !labHasKey) btn.attribute('disabled', 'true');
+      // 廊下イベント未通過は廊下以外を無効化
+      let naotoBlocked = room !== '廊下' && (!labNaotoMet || (labNaotoMet && !labNaotoDead));
+      // 研究室は鍵も必要
+      if (naotoBlocked || (room === '研究室' && !labHasKey)) {
+        btn.attribute('disabled', 'true');
+      }
       btn.mousePressed(() => moveToLab(room));
     });
     // 洞窟6層への戻り口
@@ -631,13 +650,38 @@ function explore(place) {
 
   if (place === '広場') {
     // 広場：85%アイテム、15%何もなし
+    // 資料発見チェック（探索前に判定）
+    let docFoundMsg = '';
+    if (!documentObtained['新聞の切れ端'] && Math.random() < 0.15) {
+      documentObtained['新聞の切れ端'] = true;
+      docFoundMsg = '砂浜に打ち上げられた新聞の切れ端を見つけた。<br><span style="color:var(--accent)">→ 広場の「📰 新聞」ボタンで内容が読めます</span>';
+    } else if (!documentObtained['濡れた手帳のページ'] && Math.random() < 0.12) {
+      documentObtained['濡れた手帳のページ'] = true;
+      docFoundMsg = '浜辺に流れ着いた荷物の中から、濡れた手帳のページが出てきた。<br><span style="color:var(--accent)">→ 広場の「📓 手帳」ボタンで内容が読めます</span>';
+    }
     if (rand < 0.85) {
       let count = Math.random() < 0.25 ? 2 : 1;
       let items = [];
       for (let i = 0; i < count; i++) { let it = getRandomItem(place, layer); addItem(it); items.push(it); }
-      showMessage(`${place}を探索して「${items.join('・')}」を入手した。`);
+      let mainMsg = `${place}を探索して「${items.join('・')}」を入手した。`;
+      _suppressLocationMsg = true;
+      if (docFoundMsg) {
+        // 資料発見がある場合：クリック待ちで資料通知→その後アイテム取得メッセージ
+        showMessage(docFoundMsg, true, () => {
+          showMessage(mainMsg, false, () => showMainActions());
+        });
+      } else {
+        showMessage(mainMsg, false, () => showMainActions());
+      }
     } else {
-      showMessage(`${place}を探索したが、何も見つからなかった。`);
+      _suppressLocationMsg = true;
+      if (docFoundMsg) {
+        showMessage(docFoundMsg, true, () => {
+          showMessage(`${place}を探索したが、他には何も見つからなかった。`, false, () => showMainActions());
+        });
+      } else {
+        showMessage(`${place}を探索したが、何も見つからなかった。`, false, () => showMainActions());
+      }
     }
     updateParams();
   } else {
@@ -654,10 +698,12 @@ function explore(place) {
         addItem(item);
         msgs.push(item);
       }
-      showMessage(`${place}（${layer+1}層）を探索して「${msgs.join('、')}」を入手した。`);
+      _suppressLocationMsg = true;
+      showMessage(`${place}（${layer+1}層）を探索して「${msgs.join('、')}」を入手した。`, false, () => showMainActions());
       updateParams();
     } else {
-      showMessage(`${place}を探索したが、何も見つからなかった。`);
+      _suppressLocationMsg = true;
+      showMessage(`${place}を探索したが、何も見つからなかった。`, false, () => showMainActions());
       updateParams();
     }
   }
@@ -669,37 +715,43 @@ function getRandomItem(place, layer = 0) {
   if (place === '広場') {
     // 広場：焚火燃料になる木の枝・草多め
     pool = ['木の枝', '木の枝', '小果実', '草', '草', '草', '石'];
-    // 広場：漂流物資料（1回のみ）
+    // 広場：漂流物資料（1回のみ・発見してもアイテムは通常通り入手）
     if (!documentObtained['新聞の切れ端'] && Math.random() < 0.15) {
-      documentObtained['新聞の切れ端'] = true; return '新聞の切れ端';
+      documentObtained['新聞の切れ端'] = true;
+      // 発見フラグだけ立てて探索を続行（メッセージは探索結果と一緒に出す）
+      // 次回showMainActionsで📰ボタンが出る
     }
     if (!documentObtained['濡れた手帳のページ'] && Math.random() < 0.12) {
-      documentObtained['濡れた手帳のページ'] = true; return '濡れた手帳のページ';
+      documentObtained['濡れた手帳のページ'] = true;
     }
   } else if (place === '森') {
-    // 森の資料（1回のみ・層条件）
-    if (layer >= 4 && !documentObtained['錆びた看板の写真'] && Math.random() < 0.25) {
-      documentObtained['錆びた看板の写真'] = true; return '錆びた看板の写真';
+    // 森の資料（1回のみ・層条件）：看板は探索時のイベントとして出現（アイテム化しない）
+    if (layer >= 4 && !documentObtained['錆びた看板'] && Math.random() < 0.25) {
+      documentObtained['錆びた看板'] = true;
+      // 探索の結果としてではなく、イベントとして看板を発見（returnしない）
+      // → 後続の通常アイテム処理へ続く（ここではフラグだけ立てる）
     }
     if (layer >= 6 && !documentObtained['手書きメモ'] && Math.random() < 0.25) {
-      documentObtained['手書きメモ'] = true; return '手書きメモ';
+      documentObtained['手書きメモ'] = true; // フラグのみ（アイテム化しない）
     }
-    pool = ['木材', '木の枝', '草', '草', 'りんご'];
-    if (layer >= 3) pool.push('大きな木材', '薬草', '薬草');
-    if (layer >= 6) pool.push('特別な木材', '貴重な薬草');
+    // 1〜3層：木材多め（紐・いかだ制作に必要）
+    pool = ['木材', '木材', '木材', '木の枝', '木の枝', '草', '草', 'りんご'];
+    if (layer >= 3) pool.push('大きな木材', '薬草', '薬草', '薬草');
+    if (layer >= 6) pool.push('特別な木材', '特別な木材', '貴重な薬草');
   } else {
     // 洞窟の資料（1回のみ・層条件）
     if (layer >= 1 && !documentObtained['実験ログ'] && Math.random() < 0.25) {
-      documentObtained['実験ログ'] = true; return '実験ログ';
+      documentObtained['実験ログ'] = true; // フラグのみ（アイテム化しない）
     }
     if (layer >= 3 && !documentObtained['金属扉のプレート'] && Math.random() < 0.25) {
-      documentObtained['金属扉のプレート'] = true; return '金属扉のプレート';
+      documentObtained['金属扉のプレート'] = true; // フラグのみ（アイテム化しない）
     }
     pool = ['石', '石', '木材'];
     if (layer >= 3) pool.push('鉄鉱石', '鉄鉱石', '宝石');
     if (layer >= 6) pool.push('純鉄', '純鉄');
   }
-  return random(pool);
+  let result = random(pool);
+  return result || '木の枝'; // undefinedフォールバック
 }
 
 // =====================
@@ -711,7 +763,7 @@ function waitAction() {
     if (random() < 0.02) {
       showMessage('物音がした……');
       passTime(1);
-      startBattle('洞窟');
+      startBattleLab(currentRoom);
     } else {
       showMessage('待機した。');
       passTime(1);
@@ -728,7 +780,7 @@ function waitAction() {
   } else if (currentPlace === '森' || currentPlace === '洞窟') {
     // 森・洞窟で待機：10% + 層×2% の確率で敵出現
     let layer = placeLayers[currentPlace] || 0;
-    let encounterChance = 0.05 + layer * 0.01; // 最大で約15%（layer=10時）
+    let encounterChance = 0.03 + layer * 0.005; // 最大で約8%（layer=10時）
     if (random() < encounterChance) {
       showMessage(`待機中に気配を感じた……`);
       passTime(1);
@@ -751,9 +803,7 @@ function waitAction() {
 function passTime(hours) {
   elapsedTime += hours;
   updateElapsedTime();
-  for (let p in exploreCooldown) {
-    exploreCooldown[p] = max(0, exploreCooldown[p] - hours);
-  }
+  // exploreCooldownはpassTimeで減らさない（移動・探索カウントリセット時のみ解除）
   // 焚火燃料は時間経過で減少しない（明示的な投入のみ）
   if (player.mp <= 0) {
     player.hp -= 5 * hours;
@@ -794,8 +844,7 @@ function startBattleLab(room) {
   let rangeHint = e.range > 1 ? `<br><span style="color:#aaa">（射程${e.range}：距離${e.range+1}以上で安全）</span>` : '';
   updateBattleInfo();
   updateParams();
-  showMessage(`${name}が現れた！<br>${e.desc}${rangeHint}`);
-  showBattleActions();
+  showBattleMessage(`${name}が現れた！<br>${e.desc}${rangeHint}`, false, () => showBattleActions());
 }
 
 function startBattle(place) {
@@ -825,8 +874,7 @@ function startBattle(place) {
   state = 'battle';
   updateBattleInfo();
   updateParams();
-  showMessage(`${name}が現れた！（${layer+1}層　HP:${battle.enemyHp}）　距離：${battle.distance}`);
-  showBattleActions();
+  showBattleMessage(`${name}が現れた！（${layer+1}層　HP:${battle.enemyHp}）　距離：${battle.distance}`, false, () => showBattleActions());
 }
 
 // leftTop：戦闘情報
@@ -838,7 +886,7 @@ function updateBattleInfo() {
   let overlay = select('#infoOverlay');
   if (overlay) {
     overlay.html(`
-      <span class="info-badge" style="background:rgba(180,0,0,0.7)">⚔ 戦闘中 ／ ${battle.place} ${layer+1}層</span>
+      <span class="info-badge" style="background:rgba(180,0,0,0.7)">⚔ 戦闘中 ／ ${['廊下','研究室','実験室','倉庫'].includes(battle.place) ? '研究所：'+battle.place : battle.place+' '+(layer+1)+'層'}</span>
       <span class="info-badge">敵：${battle.enemyName}　HP: ${battle.enemyHp} / ${battle.enemyMaxHp}</span>
       <span class="info-badge">距離：${battle.distance}　${battle.playerTurn ? '【あなたのターン】' : '【敵のターン】'}</span>
     `);
@@ -849,7 +897,25 @@ function updateBattleInfo() {
 // 戦闘：プレイヤーアクション表示
 // =====================
 function showBattleActions() {
-  actionPanel.elt.style.visibility = 'visible';
+  // デバッグログ
+  addDebugLog(`[showBattleActions] dist:${battle.distance} hp:${player.hp} mp:${player.mp} messageWaiting:${messageWaiting}`);
+  // パネルの全ロック状態を強制解除
+  if (typeof _panelSkipHandler !== 'undefined' && _panelSkipHandler) {
+    actionPanel.elt.removeEventListener('click', _panelSkipHandler, true);
+    _panelSkipHandler = null;
+  }
+  if (actionPanel && actionPanel.elt) {
+    actionPanel.elt.style.opacity       = '1';
+    actionPanel.elt.style.pointerEvents = 'auto';
+    actionPanel.elt.style.cursor        = '';
+    actionPanel.elt.style.visibility    = 'visible';
+  }
+  // textZoneのクリック待ちリスナーも解除
+  textZone.elt.removeEventListener('click', onMessageClick);
+  messageWaiting = false;
+  nextAction = null;
+  textZone.style('cursor', 'default');
+  textZone.removeClass('waiting');
   actionPanel.html('');
 
   // 前進（距離>1のとき有効）
@@ -899,7 +965,7 @@ function showBattleActions() {
   createButton('観察').parent(actionPanel).mousePressed(() => {
     let hint = getBattleObserveHint();
     let prevMsg = textZone.elt.innerHTML;
-    showMessage(hint, true, () => { showMessage(prevMsg); showBattleActions(); });
+    showBattleMessage(hint, true, () => { showBattleMessage(prevMsg); showBattleActions(); });
   });
 
   // ？？？にアイテムを食わせる（ボス戦のみ・非回復アイテム）
@@ -925,7 +991,7 @@ function showBattleHealMenu() {
     '救急キット': { hp:25, mp:0 },
   };
   actionPanel.html('');
-  showMessage('どのアイテムを使う？（1ターン消費）');
+  textZone.html('どのアイテムを使う？（1ターン消費）');
   healItems.filter(n => (itemCounts[n]||0) > 0).forEach(n => {
     let f = foodTable[n];
     let label = f.hp === 100 ? `${n}（HP全回復）` :
@@ -953,24 +1019,31 @@ function showBattleHealMenu() {
       updateBattleInfo();
       updateParams();
       if (itemDead || player.hp <= 0) {
-        showMessage(healMsg + '<br><span style="color:#f88">▶ ' + enemyMsgItem + '</span><br>体力が尽きた……', true, () => gameOver());
+        showBattleMessage(healMsg + '<br><span style="color:#f88">▶ ' + enemyMsgItem + '</span><br>体力が尽きた……', true, () => gameOver());
       } else {
-        showMessage(healMsg + '<br><span style="color:#f88">▶ ' + enemyMsgItem + '</span>');
-        showBattleActions();
+        showBattleMessage(
+          healMsg + '<br><span style="color:#f88">▶ ' + enemyMsgItem + '</span>',
+          false,
+          () => showBattleActions()
+        );
       }
     });
   });
-  createButton('戻る').parent(actionPanel).mousePressed(() => showBattleActions());
+  createButton('戻る').parent(actionPanel).mousePressed(() => {
+    if (typeof _typeTimer !== 'undefined' && _typeTimer !== null) { clearInterval(_typeTimer); _typeTimer = null; }
+    if (typeof _unlockPanel === 'function') _unlockPanel();
+    showBattleActions();
+  });
 }
 
 // ？？？にアイテムを食わせるメニュー
 function showBattleFeedMenu() {
   const healItems = ['りんご','小果実','うさぎ肉','狼の肉','干し肉','狼肉の燻製','薬草スープ','万能薬','救急キット'];
   let feedCandidates = Object.keys(itemCounts).filter(n =>
-    (itemCounts[n]||0) > 0 && !healItems.includes(n) && !(n in weapons)
+    (itemCounts[n]||0) > 0 && !healItems.includes(n) && !(n in weapons) && !PROTECTED_ITEMS.has(n)
   );
   actionPanel.html('');
-  showMessage('何を食わせる？（1ターン消費・敵HP-3・そのターン攻撃なし）');
+  textZone.html('何を食わせる？（1ターン消費・敵HP-3・そのターン攻撃なし）');
   feedCandidates.forEach(n => {
     createButton(`${n} ×${itemCounts[n]}`).parent(actionPanel).mousePressed(() => {
       player.mp = constrain(player.mp - 1, 0, MAX_MP);
@@ -983,21 +1056,25 @@ function showBattleFeedMenu() {
       updateBattleInfo();
       updateParams();
       if (battle.enemyHp <= 0) {
-        showMessage(`「${n}」を食わせた。……？？？は動かなくなった。`, true, () => endBattle(true));
+        showBattleMessage(`「${n}」を食わせた。……？？？は動かなくなった。`, true, () => endBattle(true));
         return;
       }
-      showMessage(`「${n}」を投げた。？？？はそれを食いついた。（HP-3）<br>敵の攻撃はなかった。`);
-      showBattleActions();
+      showBattleMessage(`「${n}」を投げた。？？？はそれを食いついた。（HP-3）<br>敵の攻撃はなかった。`, false, () => showBattleActions());
     });
   });
-  createButton('戻る').parent(actionPanel).mousePressed(() => showBattleActions());
+  createButton('戻る').parent(actionPanel).mousePressed(() => {
+    if (typeof _typeTimer !== 'undefined' && _typeTimer !== null) { clearInterval(_typeTimer); _typeTimer = null; }
+    if (typeof _unlockPanel === 'function') _unlockPanel();
+    showBattleActions();
+  });
 }
 
 // =====================
 // 戦闘：プレイヤー行動
 // =====================
 function playerBattleAction(type, weaponName, atk) {
-  if (!battle.playerTurn) return;
+  if (!battle.playerTurn) { addDebugLog('[WARN] playerTurnでないのにactionが呼ばれた type=' + type); return; }
+  addDebugLog('[行動] type=' + type + (weaponName ? ' weapon=' + weaponName : ''));
   // 行動ごとに気力-1
   player.mp = constrain(player.mp - 1, 0, MAX_MP);
   battle.turns++;
@@ -1014,10 +1091,9 @@ function playerBattleAction(type, weaponName, atk) {
     let failCombined = '気力が尽きて……行動に失敗した。' +
       '<br><span style="color:#f88">▶ ' + failEnemyMsg + '</span>';
     if (failEnemyDead || player.hp <= 0) {
-      showMessage(failCombined + '<br><span style="color:tomato">体力が尽きた……</span>', true, () => gameOver());
+      showBattleMessage(failCombined + '<br><span style="color:tomato">体力が尽きた……</span>', true, () => gameOver());
     } else {
-      showMessage(failCombined);
-      showBattleActions();
+      showBattleMessage(failCombined, false, () => showBattleActions());
     }
     return;
   }
@@ -1068,7 +1144,7 @@ function playerBattleAction(type, weaponName, atk) {
       updateBattleInfo();
       updateParams();
       // 敵を倒したのでクリック待ちでendBattleへ（敵行動は発生しない）
-      showMessage(msg, true, () => endBattle(true));
+      showBattleMessage(msg, true, () => endBattle(true));
       return;
     }
   }
@@ -1089,12 +1165,10 @@ function playerBattleAction(type, weaponName, atk) {
     // HP0 → 必ずゲームオーバーへ（showBattleActionsを呼ばない）
     battle.active = false;
     state = 'gameover';
-    showMessage(combined + '<br><span style="color:tomato">体力が尽きた……</span>', true, () => gameOver());
+    showBattleMessage(combined + '<br><span style="color:tomato">体力が尽きた……</span>', true, () => gameOver());
     return;
   }
-  // クリック待ちなしで表示し、即プレイヤーターンへ
-  showMessage(combined);
-  showBattleActions();
+  showBattleMessage(combined, false, () => showBattleActions());
 }
 
 // =====================
@@ -1102,6 +1176,7 @@ function playerBattleAction(type, weaponName, atk) {
 // =====================
 function calcEnemyAction() {
   let msg = '';
+  let e = enemyTypes[battle.enemyName] || null; // 敵データ参照
 
   // 投げたターンはキャンセル
   if (battle.feedThisTurn) {
@@ -1185,7 +1260,7 @@ function endBattle(victory) {
 
   // 海上ボス勝利
   if (battle.isSeaBoss) {
-    showMessage(
+    showBattleMessage(
       '<span style="color:#ffd700;font-size:18px;font-weight:bold">？？？を倒した！</span>',
       true,
       () => endSeaBoss()
@@ -1230,31 +1305,49 @@ function endBattle(victory) {
     addItem(e.firstDrop);
     drops.push(e.firstDrop);
   }
+  // 毒ヘビはレアモンスターなのでdropBonusを半減
+  let effectiveBonus = (battle.enemyName === '毒ヘビ') ? Math.floor(dropBonus / 2) : dropBonus;
+
   for (let d of e.drops) {
-    let times = 1 + dropBonus;
+    let times = 1 + effectiveBonus;
+    // レアモンスター（毒ヘビ）は通常ドロップを1個上限に
+    let maxCount = (battle.enemyName === '毒ヘビ') ? 1 : 2;
+    let itemCount = 0;
     for (let i = 0; i < times; i++) {
+      if (itemCount >= maxCount) break;
       if (random() < d.chance) {
         addItem(d.item);
         drops.push(d.item);
+        itemCount++;
       }
     }
   }
 
-  // 撃破カウント増加
+  // 前進による戦闘か探索による戦闘かで処理を分岐
   let placeKey = battle.place;
-  placeKillCounts[placeKey] = (placeKillCounts[placeKey] || 0) + 1;
-
   let layerUpped = false;
-  // 1〜4層（layer 0〜3）：1体で層UP / 5層以降：2体で層UP
-  let killsNeeded = (layer <= 3) ? 1 : 2;
-  if (placeKillCounts[placeKey] >= killsNeeded) {
-    placeKillCounts[placeKey] = 0;
-    placeLayers[place] = layer + 1;
-    maxLayers[place] = max(maxLayers[place], placeLayers[place]);
-    // クールダウンリセット
-    exploreCooldown[place] = 0;
-    exploreCounts[place] = 0;
-    layerUpped = true;
+
+  if (battle.isAdvance) {
+    // 「前進」ボタンで始まった戦闘：撃破で即層UP
+    battle.isAdvance = false;
+    placeAdvanceKillCounts[placeKey] = (placeAdvanceKillCounts[placeKey] || 0) + 1;
+    let layer2 = placeLayers[place] || 0;
+    let bonus  = placeExploreKillBonus[place] ? 1 : 0;
+    let need   = Math.max(1, ((layer2 <= 3) ? 1 : 2) - bonus);
+    if (placeAdvanceKillCounts[placeKey] >= need) {
+      placeAdvanceKillCounts[placeKey] = 0;
+      placeExploreKillBonus[place]     = false;
+      placeLayers[place] = layer2 + 1;
+      maxLayers[place]   = max(maxLayers[place], placeLayers[place]);
+      exploreCooldown[place] = 0;
+      exploreCounts[place]   = 0;
+      layerUpped = true;
+    }
+  } else {
+    // 探索・待機中の戦闘：探索ボーナスフラグを立てるのみ
+    if (place === '森' || place === '洞窟') {
+      placeExploreKillBonus[place] = true; // 次回前進の必要数を1減らす
+    }
   }
 
   let dropMsg = drops.length > 0 ? `ドロップ：${drops.join('、')}` : 'ドロップなし';
@@ -1263,10 +1356,7 @@ function endBattle(victory) {
   // ターン数/4 時間経過（回復なし）
   let timePassed = Math.max(0, Math.floor(battle.turns / 2));
   elapsedTime += timePassed;
-  // クールダウン減少（通常のpassTimeは使わない＝回復なし）
-  for (let p in exploreCooldown) {
-    exploreCooldown[p] = max(0, exploreCooldown[p] - timePassed);
-  }
+  // クールダウンは戦闘時間では減少しない（移動・探索カウントリセット時のみ解除）
   // 焚火燃料は戦闘時間でも減少しない
   updateElapsedTime();
 
@@ -1285,7 +1375,7 @@ function endBattle(victory) {
       showMessage(
         `<div style="margin-bottom:6px"><b>ドロップアイテム</b></div>` +
         dropListHtml +
-        `<div style="margin-top:8px;color:#aaa;font-size:13px">戦闘時間：${timePassed}時間経過${layerUpped ? `　${place} → ${nextLayer}層へ` : ''}</div>`,
+        `<div style="margin-top:8px;color:#aaa;font-size:13px">戦闘時間：${timePassed}時間経過${layerUpped ? `　<span style='color:var(--accent)'>${place} ${placeLayers[place]+1}層へ</span>` : ''}</div>`,
         true,
         () => {
           updateElapsedTime();
@@ -1302,5 +1392,3 @@ function endBattle(victory) {
 // =====================
 // ケイ（森での会話）
 // =====================
-
-

@@ -155,6 +155,11 @@ let placeLayers = { '森': 0, '洞窟': 0 };
 // 場所ごとの最高到達層（逃走時の戻り先計算に使用）
 let maxLayers = { '森': 0, '洞窟': 0 };
 let placeKillCounts = { '森': 0, '洞窟': 0, '廊下': 0, '研究室': 0, '実験室': 0, '倉庫': 0 };
+// 撃破条件を満たした時、前進すると次の層に進めるフラグ
+let placeAdvanceReady = { '森': false, '洞窟': false }; // 旧フラグ（互換用）
+let placeExploreKillBonus = { '森': false, '洞窟': false };
+let _suppressLocationMsg = false; // 探索直後は場所説明を出さない // 探索中に1体倒した
+let placeAdvanceKillCounts = { '森': 0, '洞窟': 0 };        // 前進での撃破数
 
 // =====================
 // アイテム管理
@@ -314,9 +319,9 @@ const enemyTypes = {
     desc: '体長2メートルを超える太い毒ヘビ。動きが速く、気づいたときには距離を詰められている。巻き付かれると身動きが取れなくなる。牙から黄緑色の液体が滴っている。',
     atkDesc: ['毒牙で噛みついた', '巻き付いてきた', '体当たりしてきた', '尾で叩いてきた'],
     drops: [
-      { item: '蛇の皮',    chance: 0.6 },
-      { item: '毒の牙',     chance: 0.8 },
-      { item: '貴重な薬草', chance: 0.4 },
+      { item: '蛇の皮',    chance: 0.4 }, // レア：確率下げ
+      { item: '毒の牙',    chance: 0.5 }, // レア：確率下げ
+      { item: '貴重な薬草', chance: 0.25 }, // レア：確率下げ
     ],
     places: ['森', '洞窟'],
   },

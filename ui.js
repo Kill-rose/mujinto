@@ -39,40 +39,300 @@ function setup() {
 // =====================
 // メッセージ表示
 // =====================
+
+// タイプライター用の状態
+let _typeTimer = null;      // setIntervalのID
+let _typeFullHtml = '';     // 最終的なHTML全文
+let _typeOnDone = null;     // 文字出し終了後のコールバック
+
+// バックログ
+let _backlog = [];          // テキスト履歴（プレーンテキスト）
+let _backlogOpen = false;   // バックログ画面表示中か
+let _debugLog = [];         // デバッグログ
+let _typeSpeed = parseInt(localStorage.getItem('typeSpeed') || '18', 10); // ms/文字
+
+// HTMLタグを考慮しながら1文字ずつ出すタイプライター
+function startTypewriter(html, onDone) {
+  // 前のタイマーをキャンセル
+  if (_typeTimer !== null) { clearInterval(_typeTimer); _typeTimer = null; }
+
+  _typeFullHtml = html;
+  _typeOnDone   = onDone;
+
+  // HTMLをトークン列（タグor文字）に分解
+  const tokens = [];
+  const re = /(<[^>]+>|&[a-z#0-9]+;|.)/gs;
+  let m;
+  while ((m = re.exec(html)) !== null) tokens.push(m[0]);
+
+  let idx = 0;
+  let buf = '';
+  const SPEED = _typeSpeed; // ms/文字（グローバル設定値）
+
+  textZone.elt.innerHTML = '';
+  _typeTimer = setInterval(() => {
+    if (idx >= tokens.length) {
+      clearInterval(_typeTimer);
+      _typeTimer = null;
+      textZone.elt.innerHTML = _typeFullHtml; // 最終的に完全なHTMLをセット
+      if (typeof _typeOnDone === 'function') _typeOnDone();
+      return;
+    }
+    // タグはスキップ（まとめて追加）、文字は1つずつ
+    const tok = tokens[idx++];
+    buf += tok;
+    textZone.elt.innerHTML = buf;
+  }, SPEED);
+}
+
+function skipTypewriter() {
+  // タイプ中にクリック→即全表示
+  if (_typeTimer !== null) {
+    clearInterval(_typeTimer);
+    _typeTimer = null;
+    textZone.elt.innerHTML = _typeFullHtml;
+    if (typeof _typeOnDone === 'function') {
+      const cb = _typeOnDone;
+      _typeOnDone = null;
+      cb();
+    }
+  }
+}
+
+// タイプ中のパネルスキップリスナー（グローバルで1つだけ管理）
+let _panelSkipHandler = null;
+
+function _lockPanel() {
+  if (!actionPanel || !actionPanel.elt) return;
+  // 既存リスナーをまず必ず除去してから登録（二重登録防止）
+  if (_panelSkipHandler) {
+    actionPanel.elt.removeEventListener('click', _panelSkipHandler, true);
+  }
+  _panelSkipHandler = function(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    _unlockPanel();
+    skipTypewriter(); // 全表示＋onDone実行
+  };
+  actionPanel.elt.style.opacity       = '0.4';
+  actionPanel.elt.style.pointerEvents = 'none';
+  actionPanel.elt.style.cursor        = 'pointer';
+  // capture:trueでポインターイベント無効でもキャプチャできる
+  actionPanel.elt.addEventListener('click', _panelSkipHandler, { capture: true, once: true });
+}
+
+function _unlockPanel() {
+  if (!actionPanel || !actionPanel.elt) return;
+  if (_panelSkipHandler) {
+    actionPanel.elt.removeEventListener('click', _panelSkipHandler, true);
+    _panelSkipHandler = null;
+  }
+  actionPanel.elt.style.opacity       = '1';
+  actionPanel.elt.style.pointerEvents = 'auto';
+  actionPanel.elt.style.cursor        = '';
+  actionPanel.elt.style.visibility    = 'visible';
+}
+
 function showMessage(msg, waitForClick = false, afterFunc = null) {
-  textZone.html(msg);
+  // バックログに追加（HTMLタグを除いたテキストを記録）
+  const plain = msg.replace(/<[^>]+>/g, '').replace(/&[a-z#0-9]+;/g, ' ').trim();
+  if (plain) _backlog.push(plain);
+
+  // 実行中のタイプライターを即終了
+  if (_typeTimer !== null) { clearInterval(_typeTimer); _typeTimer = null; }
+  _unlockPanel();
   textZone.elt.removeEventListener('click', onMessageClick);
+
   if (waitForClick) {
     messageWaiting = true;
     nextAction = afterFunc;
-    textZone.style('cursor', 'pointer');
-    textZone.elt.addEventListener('click', onMessageClick);
+    textZone.style('cursor', 'default'); // タイプ中はdefault
     textZone.addClass('waiting');
-    // クリック待ち中はactionPanelをグレーアウト
-    if (actionPanel && actionPanel.elt) {
-      actionPanel.elt.style.opacity = '0.4';
-      actionPanel.elt.style.pointerEvents = 'none';
-    }
+    _lockPanel(); // タイプ中グレーアウト
+    startTypewriter(msg, () => {
+      // タイプ完了→クリック待ちへ
+      _unlockPanel();                    // パネル解放
+      textZone.style('cursor', 'pointer');
+      textZone.elt.addEventListener('click', onMessageClick);
+      // クリック待ち中はパネルを再グレーアウト
+      if (actionPanel && actionPanel.elt) {
+        actionPanel.elt.style.opacity       = '0.4';
+        actionPanel.elt.style.pointerEvents = 'none';
+        actionPanel.elt.style.cursor        = '';
+      }
+    });
   } else {
     messageWaiting = false;
     nextAction = null;
     textZone.style('cursor', 'default');
     textZone.removeClass('waiting');
-    // グレーアウト解除
-    if (actionPanel && actionPanel.elt) {
-      actionPanel.elt.style.opacity = '1';
-      actionPanel.elt.style.pointerEvents = 'auto';
-    }
+    _lockPanel(); // タイプ中グレーアウト
+    startTypewriter(msg, () => {
+      _unlockPanel(); // タイプ完了でパネル解放
+      if (typeof afterFunc === 'function') afterFunc(); // ← afterFuncを実行
+    });
   }
 }
 
+// =====================
+// バックログ
+// =====================
+function addDebugLog(msg) {
+  let ts = elapsedTime != null ? `[${elapsedTime}h]` : '';
+  _debugLog.push(ts + ' ' + msg);
+  if (_debugLog.length > 200) _debugLog.shift();
+}
+
+function showBacklog() {
+  if (_backlogOpen) return;
+  _backlogOpen = true;
+
+  let ov = document.createElement('div');
+  ov.id = 'backlogOverlay';
+  ov.style.cssText = `position:fixed;inset:0;z-index:200;background:rgba(10,14,10,0.97);
+    display:flex;flex-direction:column;font-family:'Noto Serif JP',serif;`;
+
+  // ヘッダー（タブ付き）
+  let header = document.createElement('div');
+  header.style.cssText = `display:flex;justify-content:space-between;align-items:center;
+    padding:8px 14px;border-bottom:1px solid #3a4235;flex:0 0 auto;gap:8px;`;
+
+  let tabs = document.createElement('div');
+  tabs.style.cssText = 'display:flex;gap:6px;';
+
+  let closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕ 閉じる';
+  closeBtn.style.cssText = 'font-size:clamp(11px,1.6vw,15px);padding:5px 14px;background:transparent;border:1px solid #3a4235;color:#7a8572;cursor:pointer;';
+  closeBtn.onclick = () => { document.body.removeChild(ov); _backlogOpen = false; };
+
+  header.appendChild(tabs);
+  header.appendChild(closeBtn);
+  ov.appendChild(header);
+
+  // 注記
+  let note = document.createElement('div');
+  note.style.cssText = 'color:#4a5245;font-size:clamp(9px,1.3vw,12px);padding:3px 14px;flex:0 0 auto;border-bottom:1px solid #1e2418;';
+  note.textContent = '長押し/ドラッグでテキストを選択してコピーできます';
+  ov.appendChild(note);
+
+  // コンテンツエリア
+  let content = document.createElement('div');
+  content.style.cssText = `flex:1;overflow-y:auto;padding:10px 14px;
+    display:flex;flex-direction:column-reverse;gap:6px;
+    user-select:text;-webkit-user-select:text;`;
+  ov.appendChild(content);
+
+  function renderTab(type) {
+    content.innerHTML = '';
+    let list = type === 'debug' ? [..._debugLog] : [..._backlog];
+    [...list].reverse().forEach((text, i) => {
+      let e = document.createElement('div');
+      let isDebug = type === 'debug';
+      e.style.cssText = `
+        color:${isDebug ? '#7aaa60' : '#d4d8cc'};
+        font-size:clamp(${isDebug ? '11px' : '13px'},${isDebug ? '1.5vw' : '1.8vw'},${isDebug ? '14px' : '17px'});
+        font-family:${isDebug ? 'monospace' : "'Noto Serif JP',serif"};
+        line-height:1.6;padding:6px 10px;
+        border-left:2px solid ${i===0 ? '#5a7a38' : '#1e2a1e'};
+        background:${i===0 ? 'rgba(58,96,48,0.08)' : 'transparent'};
+        user-select:text;-webkit-user-select:text;cursor:text;
+        white-space:pre-wrap;word-break:break-all;
+      `;
+      e.textContent = text;
+      content.appendChild(e);
+    });
+    if (list.length === 0) {
+      let e = document.createElement('div');
+      e.style.cssText = 'color:#4a5245;font-size:13px;text-align:center;padding:40px;';
+      e.textContent = 'ログがありません';
+      content.appendChild(e);
+    }
+  }
+
+  // タブボタン作成
+  let currentTab = 'story';
+  function makeTab(label, key) {
+    let btn = document.createElement('button');
+    btn.textContent = label;
+    btn.dataset.tab = key;
+    btn.style.cssText = `font-size:clamp(11px,1.6vw,15px);padding:5px 14px;cursor:pointer;
+      border:1px solid #3a4235;background:${key===currentTab?'rgba(58,96,48,0.4)':'transparent'};
+      color:${key===currentTab?'#a8d888':'#7a8572'};`;
+    btn.onclick = () => {
+      currentTab = key;
+      tabs.querySelectorAll('button').forEach(b => {
+        b.style.background = b.dataset.tab===key ? 'rgba(58,96,48,0.4)' : 'transparent';
+        b.style.color = b.dataset.tab===key ? '#a8d888' : '#7a8572';
+      });
+      renderTab(key);
+    };
+    tabs.appendChild(btn);
+  }
+  makeTab('ストーリーログ', 'story');
+  makeTab('デバッグログ', 'debug');
+
+  renderTab('story');
+  document.body.appendChild(ov);
+}
+
+
+// 戦闘専用メッセージ表示（タイプライターなし・即表示）
+function showBattleMessage(msg, waitForClick = false, afterFunc = null) {
+  // バックログに追加
+  const plain = msg.replace(/<[^>]+>/g, '').replace(/&[a-z#0-9]+;/g, ' ').trim();
+  if (plain) _backlog.push(plain);
+
+  // タイプライター完全停止・パネル系リスナー全解除
+  if (_typeTimer !== null) { clearInterval(_typeTimer); _typeTimer = null; }
+  if (_panelSkipHandler) {
+    actionPanel.elt.removeEventListener('click', _panelSkipHandler, true);
+    _panelSkipHandler = null;
+  }
+  textZone.elt.removeEventListener('click', onMessageClick);
+
+  // パネルを確実に解放（_unlockPanel経由だとリスナー除去が競合するので直接set）
+  if (actionPanel && actionPanel.elt) {
+    actionPanel.elt.style.opacity       = '1';
+    actionPanel.elt.style.pointerEvents = 'auto';
+    actionPanel.elt.style.cursor        = '';
+    actionPanel.elt.style.visibility    = 'visible';
+  }
+
+  // 即時表示
+  textZone.html(msg);
+
+  if (waitForClick) {
+    messageWaiting = true;
+    nextAction = afterFunc;
+    textZone.style('cursor', 'pointer');
+    textZone.addClass('waiting');
+    // クリック待ち中だけパネルを操作不可に
+    if (actionPanel && actionPanel.elt) {
+      actionPanel.elt.style.opacity       = '0.4';
+      actionPanel.elt.style.pointerEvents = 'none';
+    }
+    textZone.elt.addEventListener('click', onMessageClick);
+  } else {
+    messageWaiting = false;
+    nextAction = null;
+    textZone.style('cursor', 'default');
+    textZone.removeClass('waiting');
+    if (typeof afterFunc === 'function') afterFunc();
+  }
+}
 function onMessageClick() {
   if (!messageWaiting) return;
   messageWaiting = false;
   textZone.style('cursor', 'default');
   textZone.elt.removeEventListener('click', onMessageClick);
   textZone.removeClass('waiting');
-  if (actionPanel && actionPanel.elt) actionPanel.elt.style.visibility = 'visible';
+  // パネルを完全解放
+  if (actionPanel && actionPanel.elt) {
+    actionPanel.elt.style.visibility    = 'visible';
+    actionPanel.elt.style.opacity       = '1';
+    actionPanel.elt.style.pointerEvents = 'auto';
+    actionPanel.elt.style.cursor        = '';
+  }
   let action = nextAction;
   nextAction = null;
   if (typeof action === 'function') action();
@@ -594,18 +854,42 @@ function updateParams(force = false) {
     });
   }
 
-  // セーブ・ロードボタン（戦闘中以外は常時表示）
+  // ログ・ロードは戦闘中も表示。セーブは戦闘中非表示
+  // 速度設定スライダー
+  let speedDiv = createDiv().parent(rightWindow);
+  speedDiv.elt.style.cssText = 'margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;';
+  let speedLabel = createDiv('速度').parent(speedDiv);
+  speedLabel.elt.style.cssText = 'color:var(--text-dim);font-size:clamp(10px,1.3vw,13px);flex:0 0 auto;';
+  let slider = createElement('input');
+  slider.attribute('type', 'range');
+  slider.attribute('min', '0');
+  slider.attribute('max', '4');
+  slider.attribute('step', '1');
+  // 速度値→スライダー値（逆転: 速い=右）
+  // _typeSpeed: 0=即時 8=速 18=普通 35=遅 60=最遅
+  const speedSteps = [0, 8, 18, 35, 60];
+  let curStep = speedSteps.indexOf(_typeSpeed);
+  if (curStep === -1) curStep = 2;
+  slider.elt.value = 4 - curStep; // 右が速い
+  slider.elt.style.cssText = 'flex:1;accent-color:var(--accent);cursor:pointer;';
+  slider.parent(speedDiv);
+  let speedVal = createDiv(['即時','速','普通','遅','最遅'][curStep]).parent(speedDiv);
+  speedVal.elt.style.cssText = 'color:var(--accent);font-size:clamp(10px,1.3vw,13px);flex:0 0 auto;min-width:28px;text-align:right;';
+  slider.elt.addEventListener('input', () => {
+    let v = 4 - parseInt(slider.elt.value, 10);
+    _typeSpeed = speedSteps[v];
+    speedVal.elt.textContent = ['即時','速','普通','遅','最遅'][v];
+    localStorage.setItem('typeSpeed', String(_typeSpeed));
+  });
+
+  let saveDiv = createDiv().id('saveButtons').parent(rightWindow);
   if (!battle.active) {
-    let saveDiv = createDiv().id('saveButtons').parent(rightWindow);
-    if (messageWaiting) {
-      saveDiv.style('opacity', '0.4');
-      saveDiv.style('pointer-events', 'none');
-    }
     createButton('セーブ').parent(saveDiv).mousePressed(() => saveGame());
-    let btnLoad = createButton('ロード').parent(saveDiv);
-    if (!localStorage.getItem('savedata')) btnLoad.attribute('disabled', 'true');
-    btnLoad.mousePressed(() => loadAndRefresh());
   }
+  createButton('ログ').parent(saveDiv).mousePressed(() => showBacklog());
+  let btnLoad = createButton('ロード').parent(saveDiv);
+  if (!localStorage.getItem('savedata')) btnLoad.attribute('disabled', 'true');
+  btnLoad.mousePressed(() => loadAndRefresh());
 
   // デバッグ用：全回復ボタン
   if (debugMode) {
@@ -771,11 +1055,6 @@ function useItem(name) {
 // =====================
 function renderRecipeList() {
   showRecipes = true;
-  // 制作中はactionPanelをグレーアウト
-  if (actionPanel && actionPanel.elt) {
-    actionPanel.elt.style.opacity = '0.4';
-    actionPanel.elt.style.pointerEvents = 'none';
-  }
 
   // 既存オーバーレイを削除して再生成
   let oldOv = select('#recipeOverlay');
@@ -786,16 +1065,8 @@ function renderRecipeList() {
   let oldListEl = document.getElementById('recipeList');
   if (oldListEl) savedScroll = oldListEl.scrollTop;
 
-  // leftTopをオーバーレイとして使用（背景画像の上に制作画面を表示）
+  // 全画面オーバーレイ（containerの直下に固定）
   let overlay = createDiv().id('recipeOverlay').parent(leftTop);
-  overlay.style('position', 'absolute');
-  overlay.style('inset', '0');
-  overlay.style('z-index', '10');
-  overlay.style('background', 'rgba(10,14,10,0.95)');
-  overlay.style('display', 'flex');
-  overlay.style('flex-direction', 'column');
-  overlay.style('padding', '8px');
-  overlay.style('overflow', 'hidden');
 
   // タイトル
   let rH2 = createElement('h2', '制作レシピ').parent(overlay);
@@ -856,11 +1127,6 @@ function renderRecipeList() {
   createButton('閉じる').parent(btnDiv).mousePressed(() => {
     showRecipes = false;
     selectedRecipe = null;
-    // actionPanelのグレーアウト解除
-    if (actionPanel && actionPanel.elt) {
-      actionPanel.elt.style.opacity = '1';
-      actionPanel.elt.style.pointerEvents = 'auto';
-    }
     // オーバーレイごと削除
     let ov = select('#recipeOverlay');
     if (ov) ov.remove();
@@ -876,19 +1142,19 @@ function renderRecipeList() {
 function showPortrait(who, variant) {
   // who: 'kei' or 'naoto'
   // variant: 'normal'(省略時), 'down', 'happy', 'worry'
+  // kei差分: default / serious / impatience
+  // naoto差分: normal のみ
   const fileMap = {
     kei: {
-      normal: 's01_normal.png',
-      down:   's01_down.png',
-      happy:  's01_happy.png',
-      worry:  's01_worry.png',
+      default:    'kei_default.png',
+      serious:    'kei_serious.png',
+      impatience: 'kei_impatience.png',
     },
     naoto: { normal: 's02.png' },
   };
   let varMap = fileMap[who];
   if (!varMap) return;
-  let portraitFile = varMap[variant || 'normal'] || varMap['normal'];
-  let file = fileMap[who];
+  let portraitFile = varMap[variant || 'default'] || varMap[Object.keys(varMap)[0]];
   if (!portraitFile) return;
   let existing = select('#portrait');
   if (existing) existing.remove();

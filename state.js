@@ -11,6 +11,7 @@ let battle = {
   turns: 0,
   killCount: 0,
   isSeaBoss: false,
+  isAdvance: false,  // 前進ボタンで始まった戦闘か
   strongAttackCounter: 0,  // 強攻撃カウンター（3ターンごとに発動）
   feedThisTurn: false,     // このターン投げた（強攻撃キャンセル）
 };

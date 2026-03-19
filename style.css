@@ -1,89 +1,134 @@
-/* style.css — 無人島サバイバル：航海日誌テーマ */
-/* スマホ縦画面対応版 */
-
-* {
-  user-select: none;
-  box-sizing: border-box;
-}
+/* style.css — 無人島サバイバル */
 
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600;700&family=Cinzel:wght@400;600&display=swap');
 
-/* ===================== CSS変数 ===================== */
+/* ===================== 変数 ===================== */
 :root {
-  --bg-deep:      #0d0f0e;
-  --bg-panel:     #111410;
-  --bg-surface:   #1a1e1a;
-  --bg-raised:    #222820;
-  --border:       #3a4235;
-  --border-light: #4a5445;
-  --accent:       #8fbc5a;
-  --accent-dim:   #5a7a38;
-  --accent-glow:  rgba(143, 188, 90, 0.18);
-  --gold:         #c9a84c;
-  --gold-dim:     #8a6e2a;
-  --danger:       #c0503a;
-  --text-primary: #d4d8cc;
-  --text-dim:     #7a8572;
-  --text-faint:   #4a5245;
+  --bg-deep:     #0d0f0e;
+  --bg-panel:    #111410;
+  --bg-surface:  #1a1e1a;
+  --bg-raised:   #222820;
+  --border:      #3a4235;
+  --border-hi:   #4a5445;
+  --accent:      #8fbc5a;
+  --accent-dim:  #5a7a38;
+  --accent-glow: rgba(143,188,90,0.18);
+  --gold:        #c9a84c;
+  --gold-dim:    #8a6e2a;
+  --danger:      #c0503a;
+  --text:        #d4d8cc;
+  --text-dim:    #7a8572;
+  --text-faint:  #4a5245;
 }
+
+/* ===================== リセット ===================== */
+* { box-sizing: border-box; user-select: none; }
 
 body {
   margin: 0;
-  background-color: var(--bg-deep);
-  color: var(--text-primary);
+  background: var(--bg-deep);
+  color: var(--text);
   font-family: 'Noto Serif JP', serif;
   overflow: hidden;
-  height: 100dvh;
+  height: 100vh;
 }
 
-/* ===================== コンテナ ===================== */
+/* ===================== レイアウト ===================== */
 #container {
-  width: 100vw;
-  height: 100dvh;
   display: flex;
-  flex-direction: row;
-  background-color: var(--bg-panel);
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg-panel);
 }
 
-/* ===================== 左ウィンドウ ===================== */
 #leftWindow {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--border);
   position: relative;
-  min-width: 0;
-  min-height: 0;
 }
 
+/* 左上：背景画像エリア */
 #leftTop {
   flex: 3;
-  border-bottom: 1px solid var(--border);
-  background-color: #1e2418;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
   display: flex;
   flex-direction: column;
   position: relative;
+  background: #1e2418 no-repeat center/cover;
+  border-bottom: 1px solid var(--border);
   overflow-y: auto;
-  min-height: 0;
 }
 
 #leftTop::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(0,0,0,0.35) 0%,
-    rgba(0,0,0,0.10) 40%,
-    rgba(0,0,0,0.55) 100%
-  );
+  background: linear-gradient(to bottom,rgba(0,0,0,.35) 0%,rgba(0,0,0,.1) 40%,rgba(0,0,0,.55) 100%);
   pointer-events: none;
   z-index: 1;
 }
 
+/* 左下：テキスト＋操作パネル */
+#leftBottom {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+#textZone {
+  flex: 1;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  overflow-y: auto;
+  font-size: clamp(14px, 1.6vw, 20px);
+  line-height: 1.7;
+  position: relative;
+  min-height: 0;
+}
+
+#textZone.waiting::after {
+  content: '▼';
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  color: var(--accent-dim);
+  font-size: 12px;
+  animation: blink 1s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.1} }
+
+#actionPanel {
+  flex: 0 0 auto;
+  padding: 6px 8px;
+  background: var(--bg-surface);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+  max-height: 35vh;
+}
+
+/* 右ウィンドウ */
+#rightWindow {
+  width: 280px;
+  padding: 12px 10px;
+  background: var(--bg-panel);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  font-size: clamp(13px, 1.2vw, 17px);
+}
+
+/* ===================== 情報オーバーレイ ===================== */
 #infoOverlay {
   padding: 8px 10px 4px;
   display: flex;
@@ -96,103 +141,22 @@ body {
 
 .info-badge {
   display: inline-block;
-  background: rgba(0,0,0,0.65);
+  background: rgba(0,0,0,.65);
   color: var(--accent);
-  font-size: clamp(12px, 1.8vw, 20px);
+  font-size: clamp(12px, 1.4vw, 18px);
   font-weight: 600;
   padding: 3px 10px;
-  border-radius: 2px;
   border-left: 2px solid var(--accent-dim);
   width: fit-content;
-  letter-spacing: 0.04em;
 }
 
-#leftBottom {
-  flex: 2;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-#textZone {
-  flex: 1;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
-  background-color: var(--bg-panel);
-  background-image: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 23px,
-    rgba(255,255,255,0.015) 23px,
-    rgba(255,255,255,0.015) 24px
-  );
-  overflow-y: auto;
-  font-size: clamp(14px, 2.0vw, 22px);
-  line-height: 1.7;
-  color: var(--text-primary);
-  position: relative;
-  min-height: 0;
-}
-
-#textZone.waiting::after {
-  content: '▼';
-  position: absolute;
-  right: 10px;
-  bottom: 8px;
-  color: var(--accent-dim);
-  font-size: clamp(10px, 1.4vw, 14px);
-  animation: blink-arrow 1s ease-in-out infinite;
-  pointer-events: none;
-}
-
-@keyframes blink-arrow {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.1; }
-}
-
-#actionPanel {
-  flex: 0 0 auto;
-  padding: 6px 8px;
-  background-color: var(--bg-surface);
-  background-image: linear-gradient(to top, rgba(0,0,0,0.2) 0%, transparent 100%);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px;
-  overflow-y: auto;
-  border-top: 1px solid var(--border);
-  max-height: 35vh;
-}
-
-/* ===================== 右ウィンドウ ===================== */
-#rightWindow {
-  width: 280px;
-  padding: 12px 10px;
-  background-color: var(--bg-panel);
-  background-image: linear-gradient(to bottom, rgba(255,255,255,0.02) 0%, transparent 30%);
-  color: var(--text-primary);
-  font-size: clamp(13px, 1.6vw, 18px);
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-}
-
-.param {
-  margin: 3px 0;
-  font-size: clamp(12px, 1.5vw, 17px);
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
+/* ===================== ステータス・見出し ===================== */
 h2 {
-  margin: 0 0 8px 0;
+  margin: 0 0 8px;
   font-family: 'Cinzel', serif;
-  font-size: clamp(12px, 1.5vw, 17px);
+  font-size: clamp(12px, 1.2vw, 16px);
   font-weight: 600;
-  letter-spacing: 0.10em;
+  letter-spacing: .1em;
   text-transform: uppercase;
   color: var(--gold);
   border-bottom: 1px solid var(--border);
@@ -200,13 +164,17 @@ h2 {
 }
 
 h3 {
-  margin: 8px 0 3px 0;
+  margin: 8px 0 3px;
   font-family: 'Cinzel', serif;
-  font-size: clamp(10px, 1.2vw, 13px);
-  font-weight: 400;
-  letter-spacing: 0.08em;
+  font-size: clamp(10px, 1.0vw, 13px);
+  letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--text-dim);
+}
+
+.param {
+  margin: 3px 0;
+  font-size: clamp(12px, 1.2vw, 16px);
 }
 
 /* ===================== アイテム一覧 ===================== */
@@ -214,11 +182,39 @@ h3 {
   margin-top: 5px;
   flex: 1;
   overflow-y: auto;
-  background-color: var(--bg-deep);
+  background: var(--bg-deep);
   border: 1px solid var(--border);
-  border-radius: 2px;
   padding: 5px;
   min-height: 40px;
+}
+
+#itemButtons {
+  margin-top: 6px;
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+#itemButtons button {
+  flex: 1;
+  min-width: 55px;
+  font-size: clamp(11px, 1.0vw, 14px);
+  padding: 5px 3px;
+}
+
+/* ===================== セーブ・ロード ===================== */
+#saveButtons {
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+  display: flex;
+  gap: 5px;
+}
+
+#saveButtons button {
+  flex: 1;
+  font-size: clamp(10px, 1.0vw, 13px);
+  padding: clamp(4px,.6vh,8px) 0;
 }
 
 /* ===================== レシピ（leftTop内） ===================== */
@@ -226,13 +222,12 @@ h3 {
   position: relative;
   z-index: 4;
   margin: 8px 8px 0;
-  background: rgba(0,0,0,0.72);
+  background: rgba(0,0,0,.72);
   padding: 4px 8px;
-  border-radius: 2px;
   border-left: 2px solid var(--gold-dim);
   font-family: 'Cinzel', serif;
-  font-size: clamp(11px, 1.4vw, 15px);
-  letter-spacing: 0.10em;
+  font-size: clamp(11px, 1.1vw, 14px);
+  letter-spacing: .1em;
   color: var(--gold);
 }
 
@@ -246,9 +241,8 @@ h3 {
   grid-template-columns: 1fr 1fr;
   align-content: start;
   gap: 2px;
-  background-color: rgba(13,15,14,0.88);
+  background: rgba(13,15,14,.88);
   border: 1px solid var(--border);
-  border-radius: 2px;
   padding: 5px;
 }
 
@@ -262,7 +256,7 @@ h3 {
 
 #craftButtons button {
   flex: 1;
-  font-size: clamp(11px, 1.4vw, 15px);
+  font-size: clamp(11px, 1.1vw, 14px);
   padding: 6px 0;
 }
 
@@ -272,25 +266,24 @@ h3 {
   min-width: 0;
   padding: 4px 7px;
   cursor: pointer;
-  border-radius: 2px;
-  font-size: clamp(11px, 1.4vw, 15px);
-  color: var(--text-primary);
+  font-size: clamp(11px, 1.1vw, 14px);
+  color: var(--text);
   border-left: 2px solid transparent;
-  transition: background 0.12s, border-color 0.12s;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: background .12s, border-color .12s;
 }
 
 #itemList div.item-entry:hover,
 #recipeList div.item-entry:hover {
-  background-color: var(--bg-raised);
-  border-left-color: var(--border-light);
+  background: var(--bg-raised);
+  border-left-color: var(--border-hi);
 }
 
 #itemList div.selected,
 #recipeList div.selected {
-  background-color: var(--accent-glow);
+  background: var(--accent-glow);
   border-left-color: var(--accent);
   color: #e8f4d8;
   font-weight: 600;
@@ -298,74 +291,33 @@ h3 {
 }
 
 /* ===================== ボタン ===================== */
-#itemButtons {
-  margin-top: 6px;
-  display: flex;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-
-#itemButtons button {
-  flex: 1;
-  min-width: 55px;
-  font-size: clamp(11px, 1.4vw, 14px);
-  padding: 5px 3px;
-}
-
 button {
-  font-size: clamp(13px, 1.8vw, 20px);
-  padding: clamp(8px, 1.4vh, 16px) clamp(10px, 1.4vw, 20px);
+  font-size: clamp(13px, 1.5vw, 19px);
+  padding: clamp(8px,1.3vh,15px) clamp(10px,1.3vw,18px);
   cursor: pointer;
-  background-color: var(--bg-raised);
-  color: var(--text-primary);
+  background: var(--bg-raised);
+  color: var(--text);
   border: 1px solid var(--border);
   border-radius: 2px;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
-  white-space: nowrap;
   font-family: 'Noto Serif JP', serif;
-  letter-spacing: 0.02em;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  transition: background .15s, border-color .15s, color .15s;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
-button:hover   { background-color: var(--bg-surface); border-color: var(--border-light); color: #eef4e8; }
-button:active  { background-color: var(--accent-glow); border-color: var(--accent-dim); }
-button:disabled {
-  background-color: var(--bg-deep);
-  color: var(--text-faint);
-  border-color: var(--text-faint);
-  cursor: not-allowed;
-  opacity: 0.6;
-}
+button:hover   { background: var(--bg-surface); border-color: var(--border-hi); color: #eef4e8; }
+button:active  { background: var(--accent-glow); border-color: var(--accent-dim); }
+button:disabled { background: var(--bg-deep); color: var(--text-faint); border-color: var(--text-faint); cursor: not-allowed; opacity: .6; }
 
-/* ===================== セーブ・ロードボタン ===================== */
-#saveButtons {
-  margin-top: 8px;
-  border-top: 1px solid var(--border);
-  padding-top: 6px;
-  display: flex;
-  gap: 5px;
-}
+/* ===================== その他 ===================== */
+.drop-item { padding: 3px 0; color: var(--gold); font-size: clamp(12px,1.2vw,15px); }
 
-#saveButtons button {
-  flex: 1;
-  font-size: clamp(10px, 1.3vw, 14px);
-  padding: clamp(4px, 0.6vh, 8px) 0;
-}
+::-webkit-scrollbar       { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-/* ===================== ドロップアイテム ===================== */
-.drop-item {
-  padding: 3px 0;
-  color: var(--gold);
-  font-size: clamp(12px, 1.5vw, 16px);
-}
-
-/* ===================== スクロールバー ===================== */
-::-webkit-scrollbar         { width: 3px; height: 3px; }
-::-webkit-scrollbar-track   { background: transparent; }
-::-webkit-scrollbar-thumb   { background: var(--border); border-radius: 2px; }
-
-/* ===================== 立ち絵 ===================== */
 #portrait {
   position: absolute;
   bottom: calc(40% + 10px);
@@ -374,340 +326,296 @@ button:disabled {
   width: auto;
   z-index: 15;
   pointer-events: none;
-  transition: opacity 0.3s;
+  transition: opacity .3s;
 }
 
-/* =====================
-   スマホ縦画面
-   幅が600px以下、または縦長アスペクト比
-   ===================== */
-@media (max-width: 600px), (max-aspect-ratio: 3/4) {
-
-  /* コンテナを縦並びに */
-  #container {
-    flex-direction: column;
-  }
-
-  /* 左ウィンドウ：上部 */
-  #leftWindow {
-    flex: 3;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-    width: 100%;
-  }
-
-  #leftTop { flex: 3; }
-  #leftBottom { flex: 2; }
-
-  /* 右ウィンドウ：下部 縦並びに */
-  #rightWindow {
-    width: 100%;
-    border-left: none;
-    border-top: 1px solid var(--border);
-    flex: 2;
-    flex-direction: column;
-    gap: 0;
-    padding: 6px 8px;
-    overflow-y: auto;
-  }
-
-  /* ステータスブロック：横幅全体 */
-  #rightWindow > div:first-child {
-    flex: 0 0 auto;
-    width: 100%;
-  }
-
-  /* アイテム一覧：ステータスの下、2列グリッド */
-  #itemList {
-    flex: 1;
-    margin-top: 4px;
-    min-height: 60px;
-    max-height: 35vh;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-content: start;
-    gap: 2px;
-  }
-
-  /* アイテムボタン：使用・説明・捨てるを右寄せ・小さめに */
-  #itemButtons {
-    margin-top: 4px;
-    justify-content: flex-end;
-  }
-
-  #itemButtons button {
-    flex: 0 0 auto;
-    min-width: 0;
-    width: clamp(52px, 16vw, 72px);
-    font-size: clamp(10px, 3vw, 13px);
-    padding: 5px 2px;
-  }
-
-  /* セーブ・ロード：縦並び */
-  #saveButtons {
-    margin-top: 6px;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  #saveButtons button {
-    width: 100%;
-    font-size: clamp(10px, 3vw, 13px);
-    padding: 6px 0;
-  }
-
-  /* 操作パネルを縦画面に合わせてコンパクトに */
-  #actionPanel {
-    max-height: 25vh;
-    gap: 4px;
-    padding: 4px 5px;
-  }
-
-  button {
-    font-size: clamp(11px, 3.5vw, 17px);
-    padding: clamp(6px, 1.8vh, 12px) clamp(7px, 2.5vw, 14px);
-  }
-
-  #textZone {
-    font-size: clamp(12px, 3.5vw, 17px);
-    padding: 8px 10px;
-    max-height: 22vh;
-  }
-
-  .info-badge {
-    font-size: clamp(10px, 3vw, 15px);
-    padding: 2px 7px;
-  }
-
-  .param { font-size: clamp(10px, 3vw, 14px); }
-  h2     { font-size: clamp(10px, 3vw, 14px); margin-bottom: 4px; }
-  h3     { font-size: clamp(9px, 2.5vw, 12px); }
-
-  /* レシピは縦画面で1列 */
-  #recipeList {
-    grid-template-columns: 1fr;
-    margin: 3px 6px 0;
-  }
-  #recipeH2    { margin: 5px 6px 0; font-size: clamp(10px, 3vw, 13px); }
-  #craftButtons { margin: 3px 6px 3px; }
-
-  #craftButtons button,
-  #itemButtons button,
-  #saveButtons button {
-    font-size: clamp(10px, 3vw, 13px);
-    padding: 4px 3px;
-  }
-
-  /* 立ち絵を縦画面用に縮小 */
-  #portrait {
-    height: 100px;
-    bottom: calc(25vh + 5px);
-    left: 10px;
-  }
-}
-
-/* =====================
-   タブレット横画面（601〜900px）
-   ===================== */
-@media (min-width: 601px) and (max-width: 900px) {
-  #rightWindow { width: 240px; }
-  button {
-    font-size: clamp(12px, 1.8vw, 18px);
-    padding: clamp(7px, 1.2vh, 14px) clamp(8px, 1.2vw, 16px);
-  }
-}
-
-/* ===================== 制作画面オーバーレイ ===================== */
-/* ===================== 制作画面オーバーレイ ===================== */
+/* ===================== 制作オーバーレイ（全画面） ===================== */
 #recipeOverlay {
-  position: fixed;
+  position: absolute;   /* leftTop内に絶対配置 */
   inset: 0;
-  z-index: 100;
-  background-color: #0d0f0e; /* 完全不透明：背景画像を完全に隠す */
+  z-index: 10;
+  background: rgba(13,15,14,0.97);
   display: flex;
   flex-direction: column;
-  padding: 14px;
-  overflow: hidden; /* 全体はhidden、リスト部分だけスクロール */
+  padding: 10px;
+  overflow: hidden;     /* 全体はhidden、リストだけスクロール */
 }
 
-/* タイトル行 */
 #recipeOverlay #recipeH2 {
   position: static;
-  flex: 0 0 auto;
-  margin: 0 0 8px 0;
+  margin: 0 0 8px;
   background: transparent;
   border-left: 2px solid var(--gold-dim);
-  font-size: clamp(13px, 2vw, 18px);
+  font-size: clamp(13px, 1.8vw, 18px);
+  flex: 0 0 auto;
 }
 
-/* レシピリスト：残り全スペースを使ってスクロール */
 #recipeOverlay #recipeList {
   position: static;
   margin: 0;
   flex: 1;
   min-height: 0;
-  overflow-y: auto;  /* リストだけスクロール可能 */
-  -webkit-overflow-scrolling: touch; /* iOSでの慣性スクロール */
-  font-size: clamp(12px, 1.8vw, 16px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-content: start;
   gap: 2px;
-  background-color: var(--bg-deep);
+  background: var(--bg-deep);
   border: 1px solid var(--border);
-  border-radius: 2px;
   padding: 6px;
+  font-size: clamp(12px, 1.5vw, 16px);
 }
 
-/* ボタン行：下部に固定 */
+#recipeOverlay #recipeList div.item-entry {
+  font-size: clamp(12px, 1.5vw, 16px);
+  padding: 6px 8px;
+  white-space: normal;    /* 折り返してテキストを読める */
+  word-break: break-all;
+}
+
+#recipeOverlay #recipeList div.selected {
+  white-space: normal;
+}
+
 #recipeOverlay #craftButtons {
   position: static;
-  flex: 0 0 auto;
   margin: 8px 0 0;
+  flex: 0 0 auto;
   display: flex;
   gap: 8px;
 }
 
 #recipeOverlay #craftButtons button {
   flex: 1;
-  font-size: clamp(13px, 2vw, 18px);
-  padding: clamp(8px, 1.5vh, 14px) 0;
+  font-size: clamp(13px, 1.8vw, 18px);
+  padding: clamp(10px, 1.5vh, 16px) 0;
 }
 
-/* スマホ：1列に */
+/* ===================== スマホ縦画面 ===================== */
 @media (max-width: 600px), (max-aspect-ratio: 3/4) {
+
+  body { overflow: hidden; height: 100dvh; }
+
+  #container {
+    flex-direction: column;   /* 縦積み */
+    height: 100dvh;
+  }
+
+  /* 左ウィンドウ：上部 60% */
+  #leftWindow {
+    flex: 0 0 60dvh;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    width: 100%;
+  }
+
+  /* 左上の画像エリア */
+  #leftTop {
+    flex: 2;
+  }
+
+  /* 左下：テキスト + 操作パネル */
+  #leftBottom {
+    flex: 3;
+  }
+
+  #textZone {
+    font-size: clamp(13px, 3.8vw, 18px);
+    padding: 8px 10px;
+    max-height: 18dvh;  /* テキストが広がりすぎない */
+  }
+
+  #actionPanel {
+    max-height: 22dvh;
+    gap: 4px;
+    padding: 5px 6px;
+  }
+
+  /* 操作ボタン */
+  button {
+    font-size: clamp(12px, 3.8vw, 17px);
+    padding: clamp(8px, 2dvh, 14px) clamp(8px, 3vw, 16px);
+  }
+
+  /* info-badge（左上の経過時間等） */
+  .info-badge {
+    font-size: clamp(11px, 3.2vw, 15px);
+    padding: 2px 8px;
+  }
+
+  /* 右ウィンドウ：下部 40% */
+  #rightWindow {
+    flex: 0 0 40dvh;
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    flex-direction: column;     /* 縦積み：ステータス→アイテム */
+    padding: 8px 10px;
+    overflow: hidden;
+    font-size: clamp(12px, 3.5vw, 16px);
+  }
+
+  h2 { font-size: clamp(12px, 3.2vw, 15px); margin-bottom: 4px; }
+  h3 { font-size: clamp(10px, 2.8vw, 13px); }
+  .param { font-size: clamp(12px, 3.2vw, 15px); }
+
+  /* アイテム一覧：2列グリッド */
+  #itemList {
+    flex: 1;
+    min-height: 0;
+    margin-top: 4px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-content: start;
+    gap: 2px;
+  }
+
+  #itemList div.item-entry {
+    font-size: clamp(11px, 3.2vw, 14px);
+    padding: 5px 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #itemList div.selected {
+    white-space: normal;
+    grid-column: span 2;    /* 選択中は2列またがって全文表示 */
+  }
+
+  /* アイテムボタン（使用・説明・捨てる）：右寄せ・コンパクト */
+  #itemButtons {
+    margin-top: 4px;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+
+  #itemButtons button {
+    flex: 0 0 auto;
+    width: clamp(56px, 18vw, 80px);
+    font-size: clamp(11px, 3.2vw, 14px);
+    padding: 6px 2px;
+  }
+
+  /* セーブ・ロード：横並びコンパクト */
+  #saveButtons {
+    margin-top: 4px;
+    gap: 4px;
+    flex-direction: row;
+  }
+
+  #saveButtons button {
+    flex: 1;
+    font-size: clamp(10px, 3vw, 13px);
+    padding: 5px 0;
+  }
+
+  /* 立ち絵：縦画面では小さく */
+  #portrait {
+    height: 90px;
+    bottom: calc(40dvh + 5px);
+    left: 10px;
+  }
+
+  /* 制作オーバーレイ：スマホでは1列 */
   #recipeOverlay {
-    padding: 10px;
+    padding: 8px;
   }
+
   #recipeOverlay #recipeList {
-    grid-template-columns: 1fr; /* スマホは1列 */
-    font-size: clamp(13px, 3.5vw, 17px);
+    grid-template-columns: 1fr;   /* 1列で折り返し可能に */
+    font-size: clamp(13px, 3.8vw, 17px);
   }
+
   #recipeOverlay #recipeList div.item-entry {
-    font-size: clamp(13px, 3.5vw, 17px);
-    padding: 7px 10px;
-    white-space: normal; /* スマホは折り返し */
+    font-size: clamp(13px, 3.8vw, 17px);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
   }
+
   #recipeOverlay #recipeH2 {
-    font-size: clamp(13px, 3.5vw, 17px);
+    font-size: clamp(13px, 3.8vw, 17px);
   }
+
   #recipeOverlay #craftButtons button {
-    font-size: clamp(13px, 3.5vw, 17px);
-    padding: 10px 0;
+    font-size: clamp(13px, 3.8vw, 17px);
+    padding: 12px 0;
   }
 }
 
-/* ===================== ボタン：アイコン＆カラー ===================== */
-
-/* アイコンとラベルのレイアウト */
-button .btn-icon {
-  display: inline-block;
-  margin-right: 5px;
-  font-style: normal;
-  line-height: 1;
+/* ===================== タブレット横 ===================== */
+@media (min-width: 601px) and (max-width: 900px) {
+  #rightWindow { width: 240px; }
+  button {
+    font-size: clamp(12px, 1.7vw, 17px);
+    padding: clamp(7px, 1.2vh, 13px) clamp(8px, 1.2vw, 15px);
+  }
 }
 
-button .btn-label {
-  display: inline-block;
-  vertical-align: middle;
+/* ===================== ボタンカラーバリエーション ===================== */
+button[data-btn-color="explore"] { background:#1a2e18; border-color:#3a6030; color:#a8d890; }
+button[data-btn-color="explore"]:hover { background:#223a20; border-color:#5a8a40; }
+
+button[data-btn-color="danger"]  { background:#2e1010; border-color:#7a2020; color:#e89090; }
+button[data-btn-color="danger"]:hover  { background:#3a1515; border-color:#a03030; }
+
+button[data-btn-color="move"]    { background:#12202a; border-color:#284a60; color:#80b8d8; }
+button[data-btn-color="move"]:hover    { background:#182a38; border-color:#3a6a88; }
+
+button[data-btn-color="rest"]    { background:#101828; border-color:#203050; color:#8090c0; }
+button[data-btn-color="rest"]:hover    { background:#162030; border-color:#304070; }
+
+button[data-btn-color="craft"]   { background:#281e08; border-color:#6a4e10; color:#d4a840; }
+button[data-btn-color="craft"]:hover   { background:#342808; border-color:#8a6820; }
+
+button[data-btn-color="story"]   { background:#142018; border-color:#2a5030; color:#70c080; }
+button[data-btn-color="story"]:hover   { background:#1a2a20; border-color:#406040; }
+
+button[data-btn-color="escape"]  { background:#202018; border-color:#504828; color:#c0b060; }
+button[data-btn-color="escape"]:hover  { background:#2a2820; border-color:#706030; }
+
+button[data-btn-color="primary"] { background:#183028; border-color:#307050; color:#90d8b0; }
+button[data-btn-color="primary"]:hover { background:#203c30; border-color:#408060; }
+
+button[data-btn-color="sub"]     { background:var(--bg-raised); border-color:var(--border); color:var(--text-dim); }
+button[data-btn-color="sub"]:hover     { background:var(--bg-surface); border-color:var(--border-hi); color:var(--text); }
+
+button:disabled[data-btn-color]  { background:var(--bg-deep) !important; border-color:var(--text-faint) !important; color:var(--text-faint) !important; opacity:.5; }
+
+/* ===================== バックログオーバーレイ ===================== */
+#backlogOverlay {
+  /* JS側でstyle直書きしているため補足のみ */
+}
+/* バックログ内はテキスト選択を許可 */
+#backlogOverlay * {
+  user-select: text !important;
+  -webkit-user-select: text !important;
 }
 
-/* カラーバリエーション */
-button[data-btn-color="explore"] {
-  background-color: #1a2e18;
-  border-color: #3a6030;
-  color: #a8d890;
+/* ===================== 速度スライダー ===================== */
+input[type="range"] {
+  -webkit-appearance: none;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
 }
-button[data-btn-color="explore"]:hover {
-  background-color: #223a20;
-  border-color: #5a8a40;
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
 }
-
-button[data-btn-color="danger"] {
-  background-color: #2e1010;
-  border-color: #7a2020;
-  color: #e89090;
-}
-button[data-btn-color="danger"]:hover {
-  background-color: #3a1515;
-  border-color: #a03030;
-}
-
-button[data-btn-color="move"] {
-  background-color: #12202a;
-  border-color: #284a60;
-  color: #80b8d8;
-}
-button[data-btn-color="move"]:hover {
-  background-color: #182a38;
-  border-color: #3a6a88;
-}
-
-button[data-btn-color="rest"] {
-  background-color: #101828;
-  border-color: #203050;
-  color: #8090c0;
-}
-button[data-btn-color="rest"]:hover {
-  background-color: #162030;
-  border-color: #304070;
-}
-
-button[data-btn-color="craft"] {
-  background-color: #281e08;
-  border-color: #6a4e10;
-  color: #d4a840;
-}
-button[data-btn-color="craft"]:hover {
-  background-color: #342808;
-  border-color: #8a6820;
-}
-
-button[data-btn-color="story"] {
-  background-color: #142018;
-  border-color: #2a5030;
-  color: #70c080;
-}
-button[data-btn-color="story"]:hover {
-  background-color: #1a2a20;
-  border-color: #406040;
-}
-
-button[data-btn-color="escape"] {
-  background-color: #202018;
-  border-color: #504828;
-  color: #c0b060;
-}
-button[data-btn-color="escape"]:hover {
-  background-color: #2a2820;
-  border-color: #706030;
-}
-
-button[data-btn-color="primary"] {
-  background-color: #183028;
-  border-color: #307050;
-  color: #90d8b0;
-}
-button[data-btn-color="primary"]:hover {
-  background-color: #203c30;
-  border-color: #408060;
-}
-
-button[data-btn-color="sub"] {
-  background-color: var(--bg-raised);
-  border-color: var(--border);
-  color: var(--text-dim);
-}
-button[data-btn-color="sub"]:hover {
-  background-color: var(--bg-surface);
-  border-color: var(--border-light);
-  color: var(--text-primary);
-}
-
-/* disabled時は色上書き */
-button:disabled[data-btn-color] {
-  background-color: var(--bg-deep) !important;
-  border-color: var(--text-faint) !important;
-  color: var(--text-faint) !important;
-  opacity: 0.5;
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
 }
